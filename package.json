@@ -11,6 +11,7 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.110.8",
     "axios": "^1.18.1",
+    "cors": "^2.8.6",
     "csvtojson": "^2.0.14",
     "next": "16.2.11",
     "playwright": "^1.61.1",
@@ -19,6 +20,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/cors": "^2.8.19",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
