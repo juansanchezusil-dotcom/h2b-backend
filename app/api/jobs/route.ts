@@ -1,14 +1,10 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { supabase } from '../../../src/db/supabase';
+import { scrapeSeasonalJobs } from '../../../src/services/seasonalJobs'; // Ajusta la ruta si es necesario
 
 export async function GET() {
-  const { data, error } = await supabase
-    .from('jobs')
-    .select('*')
-    .order('created_at', { ascending: false });
+  // Ejecuta el scraper al cargar la API
+  await scrapeSeasonalJobs();
 
-  if (error) return NextResponse.json({ error }, { status: 500 });
-
-  return NextResponse.json(data);
+  return NextResponse.json({ message: 'Scraper ejecutado' });
 }
