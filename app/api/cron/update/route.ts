@@ -5,7 +5,13 @@ import { scrapeSeasonalJobs } from '../../../../src/scrapers/seasonalJobs';
 import { scrapeUSCIS } from '../../../../src/scrapers/uscisHub';
 import { normalizeJob, normalizeEmployer } from '../../../../src/utils/normalize';
 
-export async function GET() {
+export async function GET(request: Request) {
+  // Validación de seguridad para Vercel Cron
+  const authHeader = request.headers.get('authorization');
+  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     const jobsRaw = await scrapeSeasonalJobs();
     const employersRaw = await scrapeUSCIS();
