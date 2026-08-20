@@ -19,10 +19,31 @@ export async function GET(request: Request) {
     const jobs = jobsRaw.map(normalizeJob);
     const employers = employersRaw.map(normalizeEmployer);
 
-    await supabase.from('jobs').upsert(jobs, { onConflict: 'url' });
-    await supabase.from('employers').upsert(employers, {
-      onConflict: 'employer,state,year'
-    });
+    // Subir empleadores en lotes de 200
+    const employerBatchSize = 200;
+    for (let i = 0; i < employers.length; i += employerBatchSize) {
+      const batch = employers.slice(i, i + employerBatchSize);
+      const { error } = await supabase
+        .from('employers')
+        .upsert(batch, { onConflict: 'employer,state,year' });
+
+      if (error) {
+        console.error(`❌ Error en lote empleadores ${i}:`, error.message);
+      }
+    }
+
+    // Subir trabajos en lotes de 200 usando la restricción única del esquema
+    const jobBatchSize = 200;
+    for (let i = 0; i < jobs.length; i += jobBatchSize) {
+      const batch = jobs.slice(i, i + jobBatchSize);
+      const { error } = await supabase
+        .from('jobs')
+        .upsert(batch, { onConflict: 'unique_job_offer' });
+
+      if (error) {
+        console.error(`❌ Error en lote empleadores/trabajos ${i}:`, error.message);
+      }
+    }
 
     return NextResponse.json(
       { updated: true, jobs: jobs.length, employers: employers.length },
