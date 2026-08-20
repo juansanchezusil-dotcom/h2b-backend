@@ -1,10 +1,19 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || '';
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_KEY || '';
+const supabaseUrl =
+  process.env.NEXT_PUBLIC_SUPABASE_URL ||
+  process.env.SUPABASE_URL ||
+  'https://placeholder.supabase.co';
 
-if (!supabaseUrl || !supabaseKey) {
-  console.warn('⚠️ Advertencia: Faltan las variables de entorno en el archivo .env');
+const supabaseKey =
+  process.env.SUPABASE_SERVICE_ROLE_KEY ||
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+  process.env.SUPABASE_KEY ||
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+  'placeholder-key';
+
+if (supabaseUrl === 'https://placeholder.supabase.co' || supabaseKey === 'placeholder-key') {
+  console.warn('⚠️ Advertencia: Faltan las variables de entorno de Supabase en el archivo .env');
 }
 
 export const supabase = createClient(supabaseUrl, supabaseKey);

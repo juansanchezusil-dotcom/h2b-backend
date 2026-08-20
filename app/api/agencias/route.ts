@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 import { createClient } from '@supabase/supabase-js'
 import * as XLSX from 'xlsx'
 import * as dotenv from 'dotenv'
