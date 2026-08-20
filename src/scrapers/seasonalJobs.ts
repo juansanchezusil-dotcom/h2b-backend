@@ -1,7 +1,23 @@
 import admZip from 'adm-zip';
 import { supabase } from '../db/supabase';
 
-export async function scrapeSeasonalJobs() {
+interface JobRecord {
+  title: string;
+  employer_name: string;
+  location: string;
+  wage: string;
+  begin_date: string | null;
+  end_date: string | null;
+  case_number: string;
+  job_order_pdf_url: string;
+  phone_to_apply: string | null;
+  email_to_apply: string | null;
+  job_duties: string | null;
+  workers_requested: number;
+  full_time: string;
+}
+
+export async function scrapeSeasonalJobs(): Promise<JobRecord[]> {
   console.log('🚀 Descargando Feed Oficial de datos H-2B (DOL)...');
 
   try {
@@ -27,7 +43,7 @@ export async function scrapeSeasonalJobs() {
 
     console.log(`🔎 Se obtuvieron ${records.length} registros. Procesando datos...`);
 
-    if (records.length === 0) return;
+    if (records.length === 0) return [];
 
     // Extractor profundo capaz de leer propiedades directas, anidadas u objetos anidables
     const getDeepVal = (item: any, keysToSearch: string[]) => {
@@ -65,57 +81,59 @@ export async function scrapeSeasonalJobs() {
       return null;
     };
 
-    const jobsToSave = records.map((item: any) => {
-      const caseNum = getDeepVal(item, ['caseNumber', 'casenumber', 'case_number', 'id']);
-      if (!caseNum) return null;
+    const jobsToSave = records
+      .map((item: any): JobRecord | null => {
+        const caseNum = getDeepVal(item, ['caseNumber', 'casenumber', 'case_number', 'id']);
+        if (!caseNum) return null;
 
-      // Título
-      const title = getDeepVal(item, ['tempneedJobtitle', 'jobTitle', 'jobtitle', 'tempneedSocTitle', 'title']) || 'Trabajador H-2B';
+        // Título
+        const title = getDeepVal(item, ['tempneedJobtitle', 'jobTitle', 'jobtitle', 'tempneedSocTitle', 'title']) || 'Trabajador H-2B';
 
-      // Empresa — nombre real confirmado por diagnóstico: empBusinessName
-      const employer = getDeepVal(item, [
-        'empBusinessName', 'empTradeName', 'empName', 'employerName'
-      ]) || 'Empresa Registrada';
+        // Empresa — nombre real confirmado por diagnóstico: empBusinessName
+        const employer = getDeepVal(item, [
+          'empBusinessName', 'empTradeName', 'empName', 'employerName'
+        ]) || 'Empresa Registrada';
 
-      // Salario — nombres reales confirmados: wageFrom, wageTo, wagePer (root, no anidado)
-      const wageVal = getDeepVal(item, ['wageFrom', 'wageTo']);
-      const wageUnit = getDeepVal(item, ['wagePer']) || 'hr';
-      const wageFormatted = wageVal ? `$${wageVal} / ${String(wageUnit).toLowerCase()}` : 'Salario no especificado';
+        // Salario — nombres reales confirmados: wageFrom, wageTo, wagePer (root, no anidado)
+        const wageVal = getDeepVal(item, ['wageFrom', 'wageTo']);
+        const wageUnit = getDeepVal(item, ['wagePer']) || 'hr';
+        const wageFormatted = wageVal ? `$${wageVal} / ${String(wageUnit).toLowerCase()}` : 'Salario no especificado';
 
-      // Ubicación — nombres reales confirmados: jobCity, jobState (worksite principal)
-      const city = getDeepVal(item, ['jobCity', 'empCity', 'apdxaCity']) || '';
-      const state = getDeepVal(item, ['jobState', 'empState', 'apdxaState']) || '';
-      const location = city && state ? `${city}, ${state}` : (state || city || 'EE. UU.');
+        // Ubicación — nombres reales confirmados: jobCity, jobState (worksite principal)
+        const city = getDeepVal(item, ['jobCity', 'empCity', 'apdxaCity']) || '';
+        const state = getDeepVal(item, ['jobState', 'empState', 'apdxaState']) || '';
+        const location = city && state ? `${city}, ${state}` : (state || city || 'EE. UU.');
 
-      // Contacto y detalles — nombres reales confirmados
-      const phone = getDeepVal(item, ['emppocPhone', 'empPhone']) || null;
-      const email = getDeepVal(item, ['emppocEmail']) || null;
-      const duties = getDeepVal(item, ['tempneedDescription', 'jobDuties', 'jobDescription']) || null;
-      const workers = getDeepVal(item, ['tempneedWkrPos', 'nbrWorkersRequested', 'numberOfWorkersRequested', 'workersRequested']) || 0;
-      const fullTime = getDeepVal(item, ['fullTimePosition', 'fullTime']) || 'Yes';
+        // Contacto y detalles — nombres reales confirmados
+        const phone = getDeepVal(item, ['emppocPhone', 'empPhone']) || null;
+        const email = getDeepVal(item, ['emppocEmail']) || null;
+        const duties = getDeepVal(item, ['tempneedDescription', 'jobDuties', 'jobDescription']) || null;
+        const workers = getDeepVal(item, ['tempneedWkrPos', 'nbrWorkersRequested', 'numberOfWorkersRequested', 'workersRequested']) || 0;
+        const fullTime = getDeepVal(item, ['fullTimePosition', 'fullTime']) || 'Yes';
 
-      // Fechas
-      const beginDate = getDeepVal(item, ['tempneedStart', 'jobstartdate', 'begin_date', 'jobStartDate']);
-      const endDate = getDeepVal(item, ['tempneedEnd', 'jobenddate', 'end_date', 'jobEndDate']);
+        // Fechas
+        const beginDate = getDeepVal(item, ['tempneedStart', 'jobstartdate', 'begin_date', 'jobStartDate']);
+        const endDate = getDeepVal(item, ['tempneedEnd', 'jobenddate', 'end_date', 'jobEndDate']);
 
-      const pdfUrl = getDeepVal(item, ['jobOrderUrl', 'pdfUrl']) || `https://seasonaljobs.dol.gov/job-order/${caseNum}`;
+        const pdfUrl = getDeepVal(item, ['jobOrderUrl', 'pdfUrl']) || `https://seasonaljobs.dol.gov/job-order/${caseNum}`;
 
-      return {
-        title: String(title),
-        employer_name: String(employer),
-        location: String(location),
-        wage: String(wageFormatted),
-        begin_date: beginDate ? String(beginDate) : null,
-        end_date: endDate ? String(endDate) : null,
-        case_number: String(caseNum),
-        job_order_pdf_url: String(pdfUrl),
-        phone_to_apply: phone ? String(phone) : null,
-        email_to_apply: email ? String(email) : null,
-        job_duties: duties ? String(duties) : null,
-        workers_requested: Number(workers) || 0,
-        full_time: String(fullTime)
-      };
-    }).filter(Boolean);
+        return {
+          title: String(title),
+          employer_name: String(employer),
+          location: String(location),
+          wage: String(wageFormatted),
+          begin_date: beginDate ? String(beginDate) : null,
+          end_date: endDate ? String(endDate) : null,
+          case_number: String(caseNum),
+          job_order_pdf_url: String(pdfUrl),
+          phone_to_apply: phone ? String(phone) : null,
+          email_to_apply: email ? String(email) : null,
+          job_duties: duties ? String(duties) : null,
+          workers_requested: Number(workers) || 0,
+          full_time: String(fullTime)
+        };
+      })
+      .filter((job): job is JobRecord => job !== null);
 
     // Muestra los primeros 2 elementos transformados para verificar en terminal
     console.log('\n--- MUESTRA DE DATOS MAPEADOS ---');
@@ -135,7 +153,11 @@ export async function scrapeSeasonalJobs() {
 
     console.log(`✅ ¡Sincronización completada!`);
 
+    // RETORNO DE LOS DATOS PROCESADOS
+    return jobsToSave;
+
   } catch (err: any) {
     console.error('❌ Error durante la ejecución:', err.message || err);
+    return [];
   }
 }

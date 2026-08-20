@@ -62,7 +62,7 @@ async function testCareerOneStop() {
     return
   }
 
-  const data = await res.json()
+  const data: any = await res.json();
   console.log('✅ Conexión exitosa a CareerOneStop!')
   console.log(`Ofertas encontradas: ${data.Jobs?.length || 0}`)
   console.log(JSON.stringify(data.Jobs?.slice(0, 2), null, 2))
