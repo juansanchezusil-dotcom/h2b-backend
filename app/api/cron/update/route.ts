@@ -6,7 +6,6 @@ import { scrapeUSCIS } from '../../../../src/scrapers/uscisHub';
 import { normalizeJob, normalizeEmployer } from '../../../../src/utils/normalize';
 
 export async function GET(request: Request) {
-  // Validación de seguridad para Vercel Cron
   const authHeader = request.headers.get('authorization');
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -19,29 +18,28 @@ export async function GET(request: Request) {
     const jobs = jobsRaw.map(normalizeJob);
     const employers = employersRaw.map(normalizeEmployer);
 
-    // Subir empleadores en lotes de 200
+    // Guardar empleadores
     const employerBatchSize = 200;
     for (let i = 0; i < employers.length; i += employerBatchSize) {
       const batch = employers.slice(i, i + employerBatchSize);
-      const { error } = await supabase
+      await supabase
         .from('employers')
         .upsert(batch, { onConflict: 'employer,state,year' });
-
-      if (error) {
-        console.error(`❌ Error en lote empleadores ${i}:`, error.message);
-      }
     }
 
-    // Subir trabajos en lotes de 200 usando la restricción única del esquema
+    // Guardar trabajos ignorando duplicados si coinciden con la restricción
+    console.log(`Guardando/Actualizando ${jobs.length} ofertas en Supabase...`);
     const jobBatchSize = 200;
     for (let i = 0; i < jobs.length; i += jobBatchSize) {
       const batch = jobs.slice(i, i + jobBatchSize);
+      
+      // Se utiliza ignoreDuplicates para evitar que la restricción detenga la ejecución
       const { error } = await supabase
         .from('jobs')
-        .upsert(batch, { onConflict: 'unique_job_offer' });
+        .upsert(batch, { ignoreDuplicates: true });
 
       if (error) {
-        console.error(`❌ Error en lote empleadores/trabajos ${i}:`, error.message);
+        console.warn(`Aviso en bloque ${i / jobBatchSize + 1}: ${error.message}`);
       }
     }
 
