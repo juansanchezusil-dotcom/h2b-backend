@@ -1,67 +1,44 @@
-import XLSX from 'xlsx'
-import path from 'path'
-import { supabase } from '../db/supabase.js'
+import { createClient } from '@supabase/supabase-js';
+import * as XLSX from 'xlsx';
+import * as dotenv from 'dotenv';
 
-async function importAgencies() {
-  try {
-    const filePath = path.resolve(process.cwd(), 'agencias2026.xlsx')
-    console.log(`📂 Leyendo archivo: ./${path.basename(filePath)}`)
+dotenv.config({ path: '.env' });
 
-    const workbook = XLSX.readFile(filePath)
-    const sheetName = workbook.SheetNames[0]
-    const worksheet = workbook.Sheets[sheetName]
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || '';
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_KEY || '';
+const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const rows: any[] = XLSX.utils.sheet_to_json(worksheet)
-    console.log(`📊 ${rows.length} filas encontradas. Procesando agencias...`)
+async function run() {
+  const filePath = process.argv[2] || './DataSheet.xlsx';
+  console.log(`📂 Leyendo archivo: ${filePath}`);
 
-    const agenciasMap = new Map<string, any>()
+  const workbook = XLSX.readFile(filePath);
+  const sheetName = workbook.SheetNames[0];
+  const rows: any[] = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
 
-    for (const row of rows) {
-      const reclutador = (row['Nombre completo del Reclutador'] || '').toString().trim()
-      const agencyName = (row['Nombre de la Agencia'] || '').toString().trim()
-      const country = (row['País'] || row['Pais'] || '').toString().trim()
-      const website = (row['Página web oficial'] || row['Pagina web oficial'] || '').toString().trim()
+  console.log(`📊 ${rows.length} filas encontradas en el Excel. Procesando agencias...`);
 
-      if (!agencyName && !reclutador) continue
+  const agenciesData = rows.map((row) => ({
+    name: row.name || row.Nombre || row.agency_name || 'Agencia sin nombre',
+    country: row.country || row.Pais || row.País || 'No especificado',
+    website: row.website || row.Web || row.SitioWeb || '#',
+  }));
 
-      const finalAgencyName = agencyName || reclutador
-      const key = `${finalAgencyName.toLowerCase()}_${country.toLowerCase()}`
+  console.log('🚀 Subiendo a Supabase...');
+  
+  const batchSize = 500;
+  for (let i = 0; i < agenciesData.length; i += batchSize) {
+    const batch = agenciesData.slice(i, i + batchSize);
+    const { error } = await supabase.from('agencies').upsert(batch, { onConflict: 'name' });
 
-      if (!agenciasMap.has(key)) {
-        agenciasMap.set(key, {
-          agency_name: reclutador && agencyName ? `${agencyName} (${reclutador})` : finalAgencyName,
-          country: country || 'N/A',
-          website: website || null // <--- ¡AHORA SÍ LO ENVÍA A SUPABASE!
-        })
-      }
+    if (error) {
+      console.error(`❌ Error en bloque ${i / batchSize + 1}:`, error.message);
+    } else {
+      console.log(`✅ Bloque ${i / batchSize + 1} guardado (${batch.length} agencias)`);
     }
-
-    const agenciasToInsert = Array.from(agenciasMap.values())
-    console.log(`📦 ${agenciasToInsert.length} agencias/reclutadores únicos listos para insertar.`)
-
-    if (agenciasToInsert.length === 0) {
-      console.log('⚠️ No se encontraron agencias válidas para procesar.')
-      return
-    }
-
-    console.log('🚀 Subiendo a Supabase...')
-
-    const BATCH_SIZE = 100
-    for (let i = 0; i < agenciasToInsert.length; i += BATCH_SIZE) {
-      const chunk = agenciasToInsert.slice(i, i + BATCH_SIZE)
-      const { error } = await supabase.from('sponsor_agencies').insert(chunk)
-
-      if (error) {
-        console.error(`❌ Error en bloque ${Math.floor(i / BATCH_SIZE) + 1}:`, error.message)
-      } else {
-        console.log(`✅ Bloque ${Math.floor(i / BATCH_SIZE) + 1} insertado con éxito.`)
-      }
-    }
-
-    console.log('🎉 ¡Importación de agencias realizada con éxito!')
-  } catch (error: any) {
-    console.error('❌ Error general durante la importación:', error.message || error)
   }
+
+  console.log('🎉 ¡Importación de agencias finalizada con éxito!');
 }
 
-importAgencies()
+run();
