@@ -101,8 +101,8 @@ export async function scrapeSeasonalJobs(): Promise<JobRecord[]> {
 
     const jobsToSave = records
       .map((item: any): JobRecord | null => {
-        const caseNum = getDeepVal(item, ['caseNumber', 'casenumber', 'case_number', 'id']);
-        if (!caseNum) return null;
+        const rawCaseNum = getDeepVal(item, ['caseNumber', 'case_number', 'casenumber', 'caseNum', 'id', 'jobOrderNumber']);
+        const caseNum = rawCaseNum ? String(rawCaseNum).trim() : `DOL-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
 
         // Título
         const title = getDeepVal(item, ['tempneedJobtitle', 'jobTitle', 'jobtitle', 'tempneedSocTitle', 'title']) || 'Trabajador H-2B';
