@@ -21,14 +21,33 @@ export async function scrapeSeasonalJobs(): Promise<JobRecord[]> {
   console.log('🚀 Descargando Feed Oficial de datos H-2B (DOL)...');
 
   try {
-    const today = new Date().toISOString().split('T')[0];
-    const url = `https://api.seasonaljobs.dol.gov/datahub-search/sjCaseData/zip/h2b/${today}`;
+    let response: Response | null = null;
+    let dateToTry = new Date();
 
-    const response = await fetch(url, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' }
-    });
+    // Recorre los últimos 7 días intentando descargar el ZIP disponible más reciente
+    for (let i = 0; i < 7; i++) {
+      const formattedDate = dateToTry.toISOString().split('T')[0];
+      const url = `https://api.seasonaljobs.dol.gov/datahub-search/sjCaseData/zip/h2b/${formattedDate}`;
 
-    if (!response.ok) throw new Error(`El servidor devolvió status ${response.status}`);
+      console.log(`🔎 Intentando descargar datos para la fecha: ${formattedDate}...`);
+
+      const res = await fetch(url, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' }
+      });
+
+      if (res.ok) {
+        response = res;
+        console.log(`✅ Archivo encontrado y listo para procesar (Fecha: ${formattedDate})`);
+        break;
+      }
+
+      // Resta 1 día para el siguiente intento si devuelve 404 o falla
+      dateToTry.setDate(dateToTry.getDate() - 1);
+    }
+
+    if (!response || !response.ok) {
+      throw new Error('No se encontró ningún archivo ZIP H-2B disponible en los últimos 7 días.');
+    }
 
     const arrayBuffer = await response.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
@@ -59,8 +78,7 @@ export async function scrapeSeasonalJobs(): Promise<JobRecord[]> {
         }
       }
 
-      // 2. Respaldo: si el dato no está en la raíz, revisa el primer worksite
-      // adicional (employmentLocations), que usa el prefijo apdxa*
+      // 2. Respaldo: si el dato no está en la raíz, revisa el primer worksite adicional
       const subContainers = [
         Array.isArray(item.employmentLocations) ? item.employmentLocations[0] : null
       ].filter(Boolean);
@@ -89,22 +107,22 @@ export async function scrapeSeasonalJobs(): Promise<JobRecord[]> {
         // Título
         const title = getDeepVal(item, ['tempneedJobtitle', 'jobTitle', 'jobtitle', 'tempneedSocTitle', 'title']) || 'Trabajador H-2B';
 
-        // Empresa — nombre real confirmado por diagnóstico: empBusinessName
+        // Empresa
         const employer = getDeepVal(item, [
           'empBusinessName', 'empTradeName', 'empName', 'employerName'
         ]) || 'Empresa Registrada';
 
-        // Salario — nombres reales confirmados: wageFrom, wageTo, wagePer (root, no anidado)
+        // Salario
         const wageVal = getDeepVal(item, ['wageFrom', 'wageTo']);
         const wageUnit = getDeepVal(item, ['wagePer']) || 'hr';
         const wageFormatted = wageVal ? `$${wageVal} / ${String(wageUnit).toLowerCase()}` : 'Salario no especificado';
 
-        // Ubicación — nombres reales confirmados: jobCity, jobState (worksite principal)
+        // Ubicación
         const city = getDeepVal(item, ['jobCity', 'empCity', 'apdxaCity']) || '';
         const state = getDeepVal(item, ['jobState', 'empState', 'apdxaState']) || '';
         const location = city && state ? `${city}, ${state}` : (state || city || 'EE. UU.');
 
-        // Contacto y detalles — nombres reales confirmados
+        // Contacto y detalles
         const phone = getDeepVal(item, ['emppocPhone', 'empPhone']) || null;
         const email = getDeepVal(item, ['emppocEmail']) || null;
         const duties = getDeepVal(item, ['tempneedDescription', 'jobDuties', 'jobDescription']) || null;
@@ -135,7 +153,6 @@ export async function scrapeSeasonalJobs(): Promise<JobRecord[]> {
       })
       .filter((job): job is JobRecord => job !== null);
 
-    // Muestra los primeros 2 elementos transformados para verificar en terminal
     console.log('\n--- MUESTRA DE DATOS MAPEADOS ---');
     console.log(jobsToSave.slice(0, 2));
 
@@ -146,14 +163,12 @@ export async function scrapeSeasonalJobs(): Promise<JobRecord[]> {
       const batch = jobsToSave.slice(i, i + batchSize);
       const { error } = await supabase.from('jobs').upsert(batch, { ignoreDuplicates: true });
 
-        if (error) {
-          console.warn(`⚠️ Aviso en bloque ${i / batchSize + 1}:`, error.message);
-        }
+      if (error) {
+        console.warn(`⚠️ Aviso en bloque ${i / batchSize + 1}:`, error.message);
+      }
     }
 
     console.log(`✅ ¡Sincronización completada!`);
-
-    // RETORNO DE LOS DATOS PROCESADOS
     return jobsToSave;
 
   } catch (err: any) {
