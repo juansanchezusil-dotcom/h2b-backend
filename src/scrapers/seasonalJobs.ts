@@ -161,7 +161,10 @@ export async function scrapeSeasonalJobs(): Promise<JobRecord[]> {
     const batchSize = 300;
     for (let i = 0; i < jobsToSave.length; i += batchSize) {
       const batch = jobsToSave.slice(i, i + batchSize);
-      const { error } = await supabase.from('jobs').upsert(batch, { ignoreDuplicates: true });
+      const { error } = await supabase.from('jobs').upsert(batch, { 
+  onConflict: 'case_number', 
+  ignoreDuplicates: true 
+});
 
       if (error) {
         console.warn(`⚠️ Aviso en bloque ${i / batchSize + 1}:`, error.message);
