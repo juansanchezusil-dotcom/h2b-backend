@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import admZip from 'adm-zip';
 import { supabase } from '../db/supabase';
 
@@ -148,27 +149,34 @@ export async function scrapeSeasonalJobs(): Promise<JobRecord[]> {
           email_to_apply: email ? String(email) : null,
           job_duties: duties ? String(duties) : null,
           workers_requested: Number(workers) || 0,
-          full_time: String(fullTime)
+          full_time: String(fullTime),
+          source: 'DOL'
         };
       })
       .filter((job): job is JobRecord => job !== null);
 
     console.log('\n--- MUESTRA DE DATOS MAPEADOS ---');
-    console.log(jobsToSave.slice(0, 2));
+    
 
-    console.log(`\n📦 Guardando/Actualizando ${jobsToSave.length} ofertas en Supabase...`);
+    // 1. Filtrar duplicados dentro del lote antes de enviar a Supabase
+    const uniqueJobs = Array.from(
+      new Map(jobsToSave.map(job => [job.case_number, job])).values()
+    );
 
-    const batchSize = 300;
-    for (let i = 0; i < jobsToSave.length; i += batchSize) {
-      const batch = jobsToSave.slice(i, i + batchSize);
-      
-      // Especificamos la columna del conflicto o indicamos ignorar duplicados correctamente
-      const { error } = await supabase.from('jobs').insert(batch, { 
-        ignoreDuplicates: true 
-   });
+    console.log(`\n📦 Guardando/Actualizando ${uniqueJobs.length} ofertas únicas en Supabase...`);
+
+    const batchSize = 100;
+    for (let i = 0; i < uniqueJobs.length; i += batchSize) {
+      const batch = uniqueJobs.slice(i, i + batchSize);
+
+      const { error } = await supabase
+        .from('jobs')
+        .upsert(batch, { onConflict: 'case_number' });
 
       if (error) {
-        console.warn(`⚠️ Aviso en bloque ${i / batchSize + 1}:`, error.message);
+        console.error('❌ ERROR AL INSERTAR EN SUPABASE:', error);
+      } else {
+        console.log(`✅ Bloque ${Math.floor(i / batchSize) + 1} insertado con éxito`);
       }
     }
 
