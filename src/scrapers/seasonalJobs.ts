@@ -16,6 +16,7 @@ interface JobRecord {
   job_duties: string | null;
   workers_requested: number;
   full_time: string;
+  source: string;
 }
 
 export async function scrapeSeasonalJobs(): Promise<JobRecord[]> {
