@@ -26,8 +26,8 @@ export async function POST(request: Request) {
 
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
-      console.error('ERROR CRÍTICO: GEMINI_API_KEY no encontrada');
-      return NextResponse.json({ error: 'GEMINI_API_KEY no encontrada en Vercel' }, { status: 500, headers });
+      console.error('ERROR CRÍTICO: GEMINI_API_KEY no encontrada en process.env');
+      return NextResponse.json({ error: 'GEMINI_API_KEY no encontrada' }, { status: 500, headers });
     }
 
     const cleanBase64 = imageBase64.replace(/^data:image\/\w+;base64,/, '');
@@ -36,36 +36,51 @@ export async function POST(request: Request) {
 Analiza la imagen proporcionada y evalúa si contiene señales de alerta de posible estafa.
 Debes responder ÚNICAMENTE con un objeto JSON estricto con las claves: "nivel" ("alto", "moderado" o "bajo"), "resumen", "senales" (array de strings) y "recomendacion".`;
 
-    // Endpoint directo a la API v1beta usando gemini-1.5-flash (compatible y gratis)
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    const requestBody = {
+      contents: [
+        {
+          parts: [
+            { text: systemPrompt },
+            {
+              inline_data: {
+                mime_type: mediaType,
+                data: cleanBase64,
+              },
+            },
+          ],
+        },
+      ],
+      generationConfig: {
+        response_mime_type: 'application/json',
+      },
+    };
 
-    const geminiRes = await fetch(geminiUrl, {
+    // Intentamos primero con gemini-2.5-flash
+    let modelName = 'gemini-2.5-flash';
+    let geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+
+    let geminiRes = await fetch(geminiUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [
-              { text: systemPrompt },
-              {
-                inline_data: {
-                  mime_type: mediaType,
-                  data: cleanBase64,
-                },
-              },
-            ],
-          },
-        ],
-        generationConfig: {
-          response_mime_type: 'application/json',
-        },
-      }),
+      body: JSON.stringify(requestBody),
     });
+
+    // Si devuelve 404, probamos con gemini-1.5-flash
+    if (geminiRes.status === 404) {
+      console.warn('gemini-2.5-flash devolvió 404, reintentando con gemini-1.5-flash...');
+      modelName = 'gemini-1.5-flash';
+      geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+      geminiRes = await fetch(geminiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody),
+      });
+    }
 
     if (!geminiRes.ok) {
       const errText = await geminiRes.text();
-      console.error('Error desde la API de Gemini:', geminiRes.status, errText);
-      return NextResponse.json({ error: `Error Gemini: ${geminiRes.status}` }, { status: 500, headers });
+      console.error(`Error desde la API de Gemini (${modelName}): Status ${geminiRes.status} - Respuesta:`, errText);
+      return NextResponse.json({ error: `Error Gemini ${geminiRes.status}: ${errText}` }, { status: 500, headers });
     }
 
     const geminiData = await geminiRes.json();
