@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { GoogleGenAI } from '@google/genai';
 
 function corsHeaders(origin: string | null) {
   return {
@@ -26,71 +27,48 @@ export async function POST(request: Request) {
 
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
-      console.error('ERROR CRÍTICO: GEMINI_API_KEY no encontrada en process.env');
+      console.error('ERROR: GEMINI_API_KEY no encontrada en process.env');
       return NextResponse.json({ error: 'GEMINI_API_KEY no encontrada' }, { status: 500, headers });
     }
 
+    // Inicializar el cliente oficial de Gemini
+    const ai = new GoogleGenAI({ apiKey });
+
     const cleanBase64 = imageBase64.replace(/^data:image\/\w+;base64,/, '');
 
-    const systemPrompt = `Eres un experto en detectar señales de fraude en el proceso de visa de trabajo H2B (Estados Unidos).
+    const promptText = `Eres un experto en detectar señales de fraude en el proceso de visa de trabajo H2B (Estados Unidos). 
 Analiza la imagen proporcionada y evalúa si contiene señales de alerta de posible estafa.
 Debes responder ÚNICAMENTE con un objeto JSON estricto con las claves: "nivel" ("alto", "moderado" o "bajo"), "resumen", "senales" (array de strings) y "recomendacion".`;
 
-    const requestBody = {
+    // Se realiza la llamada usando el modelo gratuito activo
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
       contents: [
         {
+          role: 'user',
           parts: [
-            { text: systemPrompt },
+            { text: promptText },
             {
-              inline_data: {
-                mime_type: mediaType,
+              inlineData: {
+                mimeType: mediaType,
                 data: cleanBase64,
               },
             },
           ],
         },
       ],
-      generationConfig: {
-        response_mime_type: 'application/json',
+      config: {
+        responseMimeType: 'application/json',
       },
-    };
-
-    // Intentamos primero con gemini-2.5-flash
-    let modelName = 'gemini-2.5-flash';
-    let geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
-
-    let geminiRes = await fetch(geminiUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(requestBody),
     });
 
-    // Si devuelve 404, probamos con gemini-1.5-flash
-    if (geminiRes.status === 404) {
-      console.warn('gemini-2.5-flash devolvió 404, reintentando con gemini-1.5-flash...');
-      modelName = 'gemini-1.5-flash';
-      geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
-      geminiRes = await fetch(geminiUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody),
-      });
-    }
+    const responseText = response.text || '{}';
+    const parsed = JSON.parse(responseText);
 
-    if (!geminiRes.ok) {
-      const errText = await geminiRes.text();
-      console.error(`Error desde la API de Gemini (${modelName}): Status ${geminiRes.status} - Respuesta:`, errText);
-      return NextResponse.json({ error: `Error Gemini ${geminiRes.status}: ${errText}` }, { status: 500, headers });
-    }
-
-    const geminiData = await geminiRes.json();
-    const rawText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
-
-    const parsed = JSON.parse(rawText);
     return NextResponse.json(parsed, { status: 200, headers });
 
   } catch (err: any) {
-    console.error('Error interno catch:', err);
+    console.error('Error procesando la imagen con Gemini:', err);
     return NextResponse.json({ error: err.message || 'Error del servidor' }, { status: 500, headers });
   }
 }
