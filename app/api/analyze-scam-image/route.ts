@@ -35,8 +35,8 @@ export async function POST(request: Request) {
 Analiza la imagen proporcionada y evalúa si contiene señales de alerta de posible estafa.
 Debes responder ÚNICAMENTE con un objeto JSON estricto con las claves: "nivel" ("alto", "moderado" o "bajo"), "resumen", "senales" (array de strings) y "recomendacion".`;
 
-    // Endpoint corregido con el identificador exacto gemini-2.0-flash-exp
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`;
+    // Endpoint corregido con el identificador exacto gemini-2.5-flash
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
     const geminiRes = await fetch(geminiUrl, {
       method: 'POST',
