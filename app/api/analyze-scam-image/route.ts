@@ -1,11 +1,8 @@
 import { NextResponse } from 'next/server';
 
 function corsHeaders(origin: string | null) {
-  // Permite juanteavisa.com, www.juanteavisa.com o cualquier subdominio válido
-  const isAllowed = origin && (origin.endsWith('juanteavisa.com') || origin === 'https://juanteavisa.com');
-  
   return {
-    'Access-Control-Allow-Origin': isAllowed ? origin : 'https://juanteavisa.com',
+    'Access-Control-Allow-Origin': origin || '*',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type',
   };
@@ -33,6 +30,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Configuración del servidor incompleta' }, { status: 500, headers });
     }
 
+    // Limpia el base64 en caso de que contenga prefijos data:image/...
+    const cleanBase64 = imageBase64.replace(/^data:image\/\w+;base64,/, '');
+
     const systemPrompt = `Eres un experto en detectar señales de fraude en el proceso de visa de trabajo H2B (Estados Unidos). 
 Analiza la imagen proporcionada (puede ser una captura de chat, un contrato, un correo o una promesa por escrito) y evalúa si contiene señales de alerta de posible estafa, tales como: solicitud de pago o dinero, promesas o garantías de visa, solicitud de datos personales o bancarios, presión de urgencia, falta de identificación oficial de la empresa, lenguaje ambiguo o poco profesional, o cualquier otra señal sospechosa relacionada con fraudes de visas de trabajo.
 Responde ÚNICAMENTE con un objeto JSON válido, sin texto adicional, sin markdown, sin explicaciones fuera del JSON, con exactamente esta estructura:
@@ -48,7 +48,7 @@ Si no encuentras señales de alerta, deja "senales" como un array vacío.`;
         'X-Title': 'Juan Te Avisa - Detector de Estafas',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.0-flash-lite-001',
+        model: 'google/gemini-2.0-flash-001',
         response_format: { type: 'json_object' },
         messages: [
           {
@@ -59,14 +59,14 @@ Si no encuentras señales de alerta, deja "senales" como un array vacío.`;
             role: 'user',
             content: [
               {
-                type: 'image_url',
-                image_url: {
-                  url: `data:${mediaType};base64,${imageBase64}`,
-                },
-              },
-              {
                 type: 'text',
                 text: 'Analiza esta imagen según tus instrucciones y responde solo con el JSON.',
+              },
+              {
+                type: 'image_url',
+                image_url: {
+                  url: `data:${mediaType};base64,${cleanBase64}`,
+                },
               },
             ],
           },
@@ -76,8 +76,8 @@ Si no encuentras señales de alerta, deja "senales" como un array vacío.`;
 
     if (!openRouterRes.ok) {
       const errText = await openRouterRes.text();
-      console.error('Error de OpenRouter:', errText);
-      return NextResponse.json({ error: 'Error al analizar la imagen con OpenRouter' }, { status: 502, headers });
+      console.error('Error devuelto por OpenRouter:', errText);
+      return NextResponse.json({ error: 'Error al analizar la imagen' }, { status: 502, headers });
     }
 
     const data = await openRouterRes.json();
