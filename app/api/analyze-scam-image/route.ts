@@ -26,17 +26,17 @@ export async function POST(request: Request) {
 
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
-      console.error('ERROR: GEMINI_API_KEY no está configurada');
       return NextResponse.json({ error: 'GEMINI_API_KEY no está configurada en Vercel' }, { status: 500, headers });
     }
 
     const cleanBase64 = imageBase64.replace(/^data:image\/\w+;base64,/, '');
 
     const systemPrompt = `Eres un experto en detectar señales de fraude en el proceso de visa de trabajo H2B (Estados Unidos).
-Analiza la imagen proporcionada y evalúa si contiene señales de alerta de posible estafa (solicitud de pagos, garantías irrealistas, presión, falta de datos oficiales).
-Debes responder con un objeto JSON estricto con las claves: "nivel" ("alto", "moderado" o "bajo"), "resumen", "senales" (array de strings) y "recomendacion".`;
+Analiza la imagen proporcionada y evalúa si contiene señales de alerta de posible estafa.
+Debes responder ÚNICAMENTE con un objeto JSON estricto con las claves: "nivel" ("alto", "moderado" o "bajo"), "resumen", "senales" (array de strings) y "recomendacion".`;
 
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+    // Endpoint corregido con el identificador exacto gemini-2.0-flash-exp
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`;
 
     const geminiRes = await fetch(geminiUrl, {
       method: 'POST',
@@ -74,7 +74,7 @@ Debes responder con un objeto JSON estricto con las claves: "nivel" ("alto", "mo
     return NextResponse.json(parsed, { status: 200, headers });
 
   } catch (err: any) {
-    console.error('Error interno en analyze-scam-image:', err);
+    console.error('Error interno:', err);
     return NextResponse.json({ error: err.message || 'Error del servidor' }, { status: 500, headers });
   }
 }
