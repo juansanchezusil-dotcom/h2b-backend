@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { GoogleGenAI } from '@google/genai';
 
 function corsHeaders(origin: string | null) {
   return {
@@ -21,78 +22,47 @@ export async function POST(request: Request) {
     const { imageBase64, mediaType } = await request.json();
 
     if (!imageBase64 || !mediaType) {
-      return NextResponse.json({ error: 'Falta la imagen o el tipo de archivo' }, { status: 400, headers });
+      return NextResponse.json({ error: 'Falta la imagen o el tipo' }, { status: 400, headers });
     }
 
-    const apiKey = process.env.OPENROUTER_API_KEY;
+    const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
-      console.error('Falta OPENROUTER_API_KEY en las variables de entorno');
-      return NextResponse.json({ error: 'Configuración del servidor incompleta' }, { status: 500, headers });
+      return NextResponse.json({ error: 'Falta GEMINI_API_KEY' }, { status: 500, headers });
     }
 
-    // Limpia el base64 en caso de que contenga prefijos data:image/...
+    const ai = new GoogleGenAI({ apiKey });
     const cleanBase64 = imageBase64.replace(/^data:image\/\w+;base64,/, '');
 
     const systemPrompt = `Eres un experto en detectar señales de fraude en el proceso de visa de trabajo H2B (Estados Unidos). 
-Analiza la imagen proporcionada (puede ser una captura de chat, un contrato, un correo o una promesa por escrito) y evalúa si contiene señales de alerta de posible estafa, tales como: solicitud de pago o dinero, promesas o garantías de visa, solicitud de datos personales o bancarios, presión de urgencia, falta de identificación oficial de la empresa, lenguaje ambiguo o poco profesional, o cualquier otra señal sospechosa relacionada con fraudes de visas de trabajo.
-Responde ÚNICAMENTE con un objeto JSON válido, sin texto adicional, sin markdown, sin explicaciones fuera del JSON, con exactamente esta estructura:
-{"nivel": "alto" o "moderado" o "bajo", "resumen": "string corto en español explicando el veredicto en 1-2 frases", "senales": ["señal encontrada 1", "señal encontrada 2"], "recomendacion": "string en español con la recomendación práctica"}
-Si no encuentras señales de alerta, deja "senales" como un array vacío.`;
+Analiza la imagen proporcionada y evalúa si contiene señales de alerta de posible estafa (cobros al trabajador, promesas de visa garantizada, urgencia, depósitos a cuentas personales, etc.).
+Responde ÚNICAMENTE con un objeto JSON válido, sin markdown, sin bloques de código triple backtick, con este formato:
+{"nivel": "alto" o "moderado" o "bajo", "resumen": "string corto en español", "senales": ["señal 1", "señal 2"], "recomendacion": "string en español"}`;
 
-    const openRouterRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-        'HTTP-Referer': 'https://juanteavisa.com',
-        'X-Title': 'Juan Te Avisa - Detector de Estafas',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.0-flash-001',
-        response_format: { type: 'json_object' },
-        messages: [
-          {
-            role: 'system',
-            content: systemPrompt,
-          },
-          {
-            role: 'user',
-            content: [
-              {
-                type: 'text',
-                text: 'Analiza esta imagen según tus instrucciones y responde solo con el JSON.',
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.0-flash',
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            { text: systemPrompt },
+            {
+              inlineData: {
+                mimeType: mediaType,
+                data: cleanBase64,
               },
-              {
-                type: 'image_url',
-                image_url: {
-                  url: `data:${mediaType};base64,${cleanBase64}`,
-                },
-              },
-            ],
-          },
-        ],
-      }),
+            },
+          ],
+        },
+      ],
     });
 
-    if (!openRouterRes.ok) {
-      const errText = await openRouterRes.text();
-      console.error('Error devuelto por OpenRouter:', errText);
-      return NextResponse.json({ error: 'Error al analizar la imagen' }, { status: 502, headers });
-    }
-
-    const data = await openRouterRes.json();
-    const contentText = data.choices?.[0]?.message?.content;
-
-    if (!contentText) {
-      return NextResponse.json({ error: 'Respuesta inesperada de la IA' }, { status: 502, headers });
-    }
-
-    const clean = contentText.replace(/```json|```/g, '').trim();
-    const parsed = JSON.parse(clean);
+    const textResult = response.text || '';
+    const cleanJson = textResult.replace(/```json|```/g, '').trim();
+    const parsed = JSON.parse(cleanJson);
 
     return NextResponse.json(parsed, { status: 200, headers });
   } catch (err: any) {
     console.error('Error en analyze-scam-image:', err);
-    return NextResponse.json({ error: 'No se pudo procesar la solicitud' }, { status: 500, headers });
+    return NextResponse.json({ error: 'No se pudo procesar la imagen' }, { status: 500, headers });
   }
 }
