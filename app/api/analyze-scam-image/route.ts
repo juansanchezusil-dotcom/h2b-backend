@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { GoogleGenAI } from '@google/genai';
 
 function corsHeaders(origin: string | null) {
   return {
@@ -22,53 +21,61 @@ export async function POST(request: Request) {
     const { imageBase64, mediaType } = await request.json();
 
     if (!imageBase64 || !mediaType) {
-      return NextResponse.json({ error: 'Falta la imagen o el tipo' }, { status: 400, headers });
+      return NextResponse.json({ error: 'Falta la imagen o el tipo de archivo' }, { status: 400, headers });
     }
 
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
-      console.error('ERROR: GEMINI_API_KEY no configurada');
-      return NextResponse.json({ error: 'Falta GEMINI_API_KEY' }, { status: 500, headers });
+      console.error('ERROR CRÍTICO: GEMINI_API_KEY no encontrada');
+      return NextResponse.json({ error: 'GEMINI_API_KEY no encontrada en Vercel' }, { status: 500, headers });
     }
 
-    // Inicializamos el SDK oficial
-    const ai = new GoogleGenAI({ apiKey });
     const cleanBase64 = imageBase64.replace(/^data:image\/\w+;base64,/, '');
 
-    const systemPrompt = `Eres un experto en detectar señales de fraude en el proceso de visa de trabajo H2B (Estados Unidos). 
-Analiza la imagen proporcionada y evalúa si contiene señales de alerta de posible estafa (cobros al trabajador, promesas de visa garantizada, urgencia, depósitos a cuentas personales, etc.).
-Responde ÚNICAMENTE con un objeto JSON válido con esta estructura exacta:
-{"nivel": "alto" o "moderado" o "bajo", "resumen": "texto corto en español", "senales": ["señal 1", "señal 2"], "recomendacion": "texto en español"}`;
+    const systemPrompt = `Eres un experto en detectar señales de fraude en el proceso de visa de trabajo H2B (Estados Unidos).
+Analiza la imagen proporcionada y evalúa si contiene señales de alerta de posible estafa.
+Debes responder ÚNICAMENTE con un objeto JSON estricto con las claves: "nivel" ("alto", "moderado" o "bajo"), "resumen", "senales" (array de strings) y "recomendacion".`;
 
-    // Llamada con la nueva versión gemini-2.5-flash recomendada por el SDK
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: [
-        {
-          role: 'user',
-          parts: [
-            { text: systemPrompt },
-            {
-              inlineData: {
-                mimeType: mediaType,
-                data: cleanBase64,
+    // Endpoint directo a la API v1beta usando gemini-1.5-flash (compatible y gratis)
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+
+    const geminiRes = await fetch(geminiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [
+              { text: systemPrompt },
+              {
+                inline_data: {
+                  mime_type: mediaType,
+                  data: cleanBase64,
+                },
               },
-            },
-          ],
+            ],
+          },
+        ],
+        generationConfig: {
+          response_mime_type: 'application/json',
         },
-      ],
-      config: {
-        responseMimeType: 'application/json',
-      },
+      }),
     });
 
-    const textResult = response.text || '{}';
-    const parsed = JSON.parse(textResult);
+    if (!geminiRes.ok) {
+      const errText = await geminiRes.text();
+      console.error('Error desde la API de Gemini:', geminiRes.status, errText);
+      return NextResponse.json({ error: `Error Gemini: ${geminiRes.status}` }, { status: 500, headers });
+    }
 
+    const geminiData = await geminiRes.json();
+    const rawText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+
+    const parsed = JSON.parse(rawText);
     return NextResponse.json(parsed, { status: 200, headers });
 
   } catch (err: any) {
-    console.error('Error interno en analyze-scam-image:', err);
+    console.error('Error interno catch:', err);
     return NextResponse.json({ error: err.message || 'Error del servidor' }, { status: 500, headers });
   }
 }
