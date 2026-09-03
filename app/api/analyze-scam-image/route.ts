@@ -31,16 +31,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'GEMINI_API_KEY no encontrada' }, { status: 500, headers });
     }
 
-    // Inicializar el cliente oficial de Gemini
     const ai = new GoogleGenAI({ apiKey });
-
     const cleanBase64 = imageBase64.replace(/^data:image\/\w+;base64,/, '');
 
     const promptText = `Eres un experto en detectar señales de fraude en el proceso de visa de trabajo H2B (Estados Unidos). 
 Analiza la imagen proporcionada y evalúa si contiene señales de alerta de posible estafa.
 Debes responder ÚNICAMENTE con un objeto JSON estricto con las claves: "nivel" ("alto", "moderado" o "bajo"), "resumen", "senales" (array de strings) y "recomendacion".`;
 
-    // Se realiza la llamada usando el modelo gratuito activo
     const response = await ai.models.generateContent({
       model: 'gemini-3.6-flash',
       contents: [
@@ -69,6 +66,29 @@ Debes responder ÚNICAMENTE con un objeto JSON estricto con las claves: "nivel" 
 
   } catch (err: any) {
     console.error('Error procesando la imagen con Gemini:', err);
-    return NextResponse.json({ error: err.message || 'Error del servidor' }, { status: 500, headers });
+
+    // Detectar específicamente el error de cuota agotada (429) para dar
+    // un mensaje claro al usuario en vez de un error genérico.
+    const errorMessage = err.message || '';
+    const isRateLimit =
+      err.status === 429 ||
+      errorMessage.includes('429') ||
+      errorMessage.toUpperCase().includes('RESOURCE_EXHAUSTED') ||
+      errorMessage.toUpperCase().includes('QUOTA');
+
+    if (isRateLimit) {
+      return NextResponse.json(
+        {
+          errorCode: 'RATE_LIMIT',
+          error: 'Hemos recibido mucho tráfico en este momento. Por favor intenta de nuevo en unos minutos.',
+        },
+        { status: 429, headers }
+      );
+    }
+
+    return NextResponse.json(
+      { errorCode: 'GENERIC', error: err.message || 'Error del servidor' },
+      { status: 500, headers }
+    );
   }
 }
