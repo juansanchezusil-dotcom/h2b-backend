@@ -42,7 +42,7 @@ Debes responder ÚNICAMENTE con un objeto JSON estricto con las claves: "nivel" 
 
     // Se realiza la llamada usando el modelo gratuito activo
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3.6-flash',
       contents: [
         {
           role: 'user',
