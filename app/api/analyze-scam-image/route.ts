@@ -63,7 +63,7 @@ SÍ marca como señales de alerta genuinas:
 - Lenguaje o formato que no corresponde en absoluto a comunicación oficial (errores graves, membretes falsos evidentes)
 
 Si el documento es un formulario oficial de USCIS/DOL (I-797, I-129, ETA, etc.) sin ninguna de las señales de arriba, tu veredicto debe ser "bajo" con un resumen que reconozca que parece un documento oficial legítimo, y tu recomendación debe sugerir verificar el número de recibo en https://egov.uscis.gov/ como confirmación adicional, no como razón de sospecha.
-
+Si notas alguna de las situaciones normales descritas arriba (diferencia de fechas por período de gracia, número de caso sin guiones, imperfecciones propias de una foto), MENCIÓNALAS brevemente en tu "resumen" explicando por qué son normales y no una señal de alerta. Esto es importante: el usuario debe sentir que la IA sí revisó esos detalles y los entendió correctamente, no que los pasó por alto. Por ejemplo: "La fecha del talón I-94 (06/10/2024) difiere de la fecha principal (05/31/2024) porque corresponde al período de gracia estándar que USCIS explica en el propio aviso; esto es normal y no indica alteración."
 Responde ÚNICAMENTE con un objeto JSON estricto con las claves: "nivel" ("alto", "moderado" o "bajo"), "resumen", "senales" (array de strings) y "recomendacion".`;
 
     const imageParts = images.map((img) => ({
