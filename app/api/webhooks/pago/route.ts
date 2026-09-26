@@ -5,7 +5,7 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     
-    // Capturar el correo según la estructura del webhook (Hotmart, Stripe, etc.)
+    // Capturar el correo segun la estructura del webhook (Hotmart, Stripe, etc.)
     const email = body.email || body.buyer?.email || body.data?.object?.customer_email;
     const status = body.status || body.event;
 
@@ -19,7 +19,7 @@ export async function POST(request: Request) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    // Evento de pago exitoso (adaptar según pasarela)
+    // Evento de pago exitoso (adaptar segun pasarela)
     const esPagoExitoso = ["APPROVED", "approved", "charge.succeeded", "pago_exitoso"].includes(status);
     const esCancelacion = ["REFUNDED", "CANCELED", "customer.subscription.deleted"].includes(status);
 
@@ -47,7 +47,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: "Acceso revocado", email }, { status: 200 });
     }
 
-    return NextResponse.json({ message: "Evento recibido pero sin acción requerida" }, { status: 200 });
+    return NextResponse.json({ message: "Evento recibido pero sin accion requerida" }, { status: 200 });
   } catch (error: any) {
     console.error("Error en Webhook de Pago:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
