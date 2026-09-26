@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/update",
       "schedule": "0 10 * * *"
+    },
+    {
+      "path": "/api/cron/followup-reminders",
+  "schedule": "0 12 * * *"
     }
   ]
 }
