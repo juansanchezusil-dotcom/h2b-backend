@@ -98,6 +98,8 @@ async function run() {
     const c = companies.get(key)!;
     c.total_approved += approvedVisas;
     c.petition_count += 1;
+    // Basta una petición con proceso consular para saber que contrata desde fuera de EE. UU.
+    if (consular.toLowerCase() === 'yes') c.consular_processed = 'Yes';
 
     if (worksiteState) c.worksite_states.add(worksiteState);
     if (wage) c.wage_ranges.add(wage);
