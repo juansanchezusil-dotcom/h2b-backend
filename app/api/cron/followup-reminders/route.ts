@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
@@ -49,7 +50,7 @@ export async function GET(request: Request) {
     const isDay14 = shouldSend === '14';
 
     try {
-      await resend.emails.send({
+      const { error: sendError } = await resend.emails.send({
         from: 'Juan Te Avisa <recordatorios@mail.juanteavisa.com>',
         to: userData.user.email,
         subject: isDay14
@@ -67,8 +68,18 @@ export async function GET(request: Request) {
         `,
       });
 
+      // Resend no lanza excepción si falla: devuelve { error }
+      if (sendError) {
+        console.error(`Resend rechazó el recordatorio para ${app.id}:`, sendError);
+        continue;
+      }
+
       const updateField = isDay14 ? { reminder_14_sent: true } : { reminder_7_sent: true };
-      await supabase.from('applications').update(updateField).eq('id', app.id);
+      const { error: updateError } = await supabase.from('applications').update(updateField).eq('id', app.id);
+      if (updateError) {
+        // Si no se marca como enviado, mañana se volvería a mandar el mismo correo
+        console.error(`Correo enviado pero no se pudo marcar ${app.id}:`, updateError);
+      }
       remindersSent++;
     } catch (err: any) {
       console.error(`Error enviando recordatorio para ${app.id}:`, err);
