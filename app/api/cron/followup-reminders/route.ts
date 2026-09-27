@@ -18,73 +18,205 @@ export async function GET(request: Request) {
 
   const resend = new Resend(process.env.RESEND_API_KEY!);
 
-  const { data: stalled, error } = await supabase
+  // Todo el cálculo de tiempo se basa SIEMPRE en created_at (fecha real de
+  // postulación), nunca en last_updated — esa columna cambia con cualquier
+  // edición (una nota, un drag) y reiniciaría el conteo sin querer.
+  const daysSinceApplied = (app: { created_at: string }) =>
+    (Date.now() - new Date(app.created_at).getTime()) / (1000 * 60 * 60 * 24);
+
+  const getUserEmail = async (userId: string) => {
+    const { data, error } = await supabase.auth.admin.getUserById(userId);
+    if (error || !data?.user?.email) return null;
+    return data.user.email;
+  };
+
+  let promoted7 = 0;
+  let reminders14 = 0;
+  let closed21 = 0;
+  const failures: string[] = [];
+
+  // ======================================================
+  // PASO 1 — DÍA 21: correo final + mover a "rechazado"
+  // Se procesa primero para que una postulación muy vieja
+  // (ej. olvidada por semanas) no reciba también el correo
+  // de día 14 en la misma corrida.
+  // ======================================================
+  const { data: day21Candidates, error: day21Error } = await supabase
     .from('applications')
     .select('*')
-    .eq('status', 'seguimiento');
+    .eq('status', 'seguimiento')
+    .eq('reminder_21_sent', false);
 
-  if (error) {
-    console.error('Error consultando applications:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  if (day21Error) {
+    console.error('Error consultando candidatos día 21:', day21Error);
   }
 
-  const now = Date.now();
-  let remindersSent = 0;
+  for (const app of day21Candidates || []) {
+    if (daysSinceApplied(app) < 21) continue;
 
-  for (const app of stalled || []) {
-    const daysSince = (now - new Date(app.last_updated).getTime()) / (1000 * 60 * 60 * 24);
-
-    let shouldSend: '7' | '14' | null = null;
-    if (daysSince >= 7 && daysSince < 14 && !app.reminder_7_sent) shouldSend = '7';
-    if (daysSince >= 14 && daysSince < 21 && !app.reminder_14_sent) shouldSend = '14';
-
-    if (!shouldSend) continue;
-
-    // Obtenemos el correo real del usuario dueño de esta postulación
-    const { data: userData, error: userError } = await supabase.auth.admin.getUserById(app.user_id);
-    if (userError || !userData?.user?.email) {
-      console.warn(`No se pudo obtener el correo del usuario ${app.user_id}`);
+    const email = await getUserEmail(app.user_id);
+    if (!email) {
+      failures.push(`día21:${app.id} sin correo`);
       continue;
     }
 
-    const isDay14 = shouldSend === '14';
+    const { error: sendError } = await resend.emails.send({
+      from: 'Juan Te Avisa <recordatorios@mail.juanteavisa.com>',
+      to: email,
+      subject: `❌ Sin respuesta de ${app.company_name} — movida a No Respondido`,
+      html: `
+        <p>Hola,</p>
+        <p>Han pasado 21 días desde tu postulación a <strong>${app.company_name}</strong>
+        (${app.job_title || 'vacante H-2B'}) sin ninguna actualización.</p>
+        <p>Siguiendo el sistema, movimos esta tarjeta a <strong>"No Respondido"</strong> en tu CRM.
+        Esto no significa que hayas hecho algo mal — así funciona el proceso, y lo importante
+        es seguir aplicando a nuevas empresas en paralelo.</p>
+        <p>Entra a tu <a href="https://h2b-fronted.vercel.app">Portal H-2B</a> para ver el detalle
+        o volver a marcarla como activa si de pronto sí te responden.</p>
+      `,
+    });
 
-    try {
-      const { error: sendError } = await resend.emails.send({
-        from: 'Juan Te Avisa <recordatorios@mail.juanteavisa.com>',
-        to: userData.user.email,
-        subject: isDay14
-          ? `⚠️ Último aviso: sigue sin respuesta de ${app.company_name}`
-          : `📅 Toca dar seguimiento a ${app.company_name}`,
-        html: `
-          <p>Hola,</p>
-          <p>Tu postulación a <strong>${app.company_name}</strong> (${app.job_title || 'vacante H-2B'})
-          lleva ${Math.floor(daysSince)} días en la etapa de seguimiento sin actualización.</p>
-          ${isDay14
-            ? `<p>Este es tu último aviso — si no hay respuesta antes del día 21, la moveremos automáticamente a "No Respondido".</p>`
-            : `<p>Te recomendamos escribirle a la empresa para preguntar por el estado de tu postulación.</p>`
-          }
-          <p>Entra a tu <a href="https://h2b-fronted.vercel.app">Portal H-2B</a> para ver el detalle.</p>
-        `,
-      });
-
-      // Resend no lanza excepción si falla: devuelve { error }
-      if (sendError) {
-        console.error(`Resend rechazó el recordatorio para ${app.id}:`, sendError);
-        continue;
-      }
-
-      const updateField = isDay14 ? { reminder_14_sent: true } : { reminder_7_sent: true };
-      const { error: updateError } = await supabase.from('applications').update(updateField).eq('id', app.id);
-      if (updateError) {
-        // Si no se marca como enviado, mañana se volvería a mandar el mismo correo
-        console.error(`Correo enviado pero no se pudo marcar ${app.id}:`, updateError);
-      }
-      remindersSent++;
-    } catch (err: any) {
-      console.error(`Error enviando recordatorio para ${app.id}:`, err);
+    if (sendError) {
+      console.error(`Resend rechazó el correo día 21 para ${app.id}:`, sendError);
+      failures.push(`día21:${app.id} resend-error`);
+      continue;
     }
+
+    const { error: updateError } = await supabase
+      .from('applications')
+      .update({ status: 'no_respondido', reminder_21_sent: true })
+      .eq('id', app.id);
+
+    if (updateError) {
+      console.error(`Correo día 21 enviado pero no se pudo actualizar ${app.id}:`, updateError);
+      failures.push(`día21:${app.id} update-error`);
+      continue;
+    }
+
+    closed21++;
   }
 
-  return NextResponse.json({ message: 'Recordatorios procesados', remindersSent });
+  // ======================================================
+  // PASO 2 — DÍA 14: recordatorio (sin cambio de estado)
+  // ======================================================
+  const { data: day14Candidates, error: day14Error } = await supabase
+    .from('applications')
+    .select('*')
+    .eq('status', 'seguimiento')
+    .eq('reminder_14_sent', false);
+
+  if (day14Error) {
+    console.error('Error consultando candidatos día 14:', day14Error);
+  }
+
+  for (const app of day14Candidates || []) {
+    const days = daysSinceApplied(app);
+    if (days < 14) continue;
+
+    const email = await getUserEmail(app.user_id);
+    if (!email) {
+      failures.push(`día14:${app.id} sin correo`);
+      continue;
+    }
+
+    const { error: sendError } = await resend.emails.send({
+      from: 'Juan Te Avisa <recordatorios@mail.juanteavisa.com>',
+      to: email,
+      subject: `⚠️ Último aviso: sigue sin respuesta de ${app.company_name}`,
+      html: `
+        <p>Hola,</p>
+        <p>Tu postulación a <strong>${app.company_name}</strong> (${app.job_title || 'vacante H-2B'})
+        lleva ${Math.floor(days)} días en seguimiento sin actualización.</p>
+        <p>Este es tu último aviso — si no hay respuesta antes del día 21, la moveremos
+        automáticamente a "No Respondido".</p>
+        <p>Te recomendamos escribirle a la empresa una última vez para preguntar por el estado.</p>
+        <p>Entra a tu <a href="https://h2b-fronted.vercel.app">Portal H-2B</a> para ver el detalle.</p>
+      `,
+    });
+
+    if (sendError) {
+      console.error(`Resend rechazó el correo día 14 para ${app.id}:`, sendError);
+      failures.push(`día14:${app.id} resend-error`);
+      continue;
+    }
+
+    const { error: updateError } = await supabase
+      .from('applications')
+      .update({ reminder_14_sent: true })
+      .eq('id', app.id);
+
+    if (updateError) {
+      console.error(`Correo día 14 enviado pero no se pudo marcar ${app.id}:`, updateError);
+      failures.push(`día14:${app.id} update-error`);
+      continue;
+    }
+
+    reminders14++;
+  }
+
+  // ======================================================
+  // PASO 3 — DÍA 7: promueve "postulado" → "seguimiento"
+  // y envía el primer aviso de seguimiento
+  // ======================================================
+  const { data: day7Candidates, error: day7Error } = await supabase
+    .from('applications')
+    .select('*')
+    .eq('status', 'postulado')
+    .eq('reminder_7_sent', false);
+
+  if (day7Error) {
+    console.error('Error consultando candidatos día 7:', day7Error);
+  }
+
+  for (const app of day7Candidates || []) {
+    if (daysSinceApplied(app) < 7) continue;
+
+    const email = await getUserEmail(app.user_id);
+    if (!email) {
+      failures.push(`día7:${app.id} sin correo`);
+      continue;
+    }
+
+    const { error: sendError } = await resend.emails.send({
+      from: 'Juan Te Avisa <recordatorios@mail.juanteavisa.com>',
+      to: email,
+      subject: `📅 Toca dar seguimiento a ${app.company_name}`,
+      html: `
+        <p>Hola,</p>
+        <p>Ya pasaron 7 días desde que postulaste a <strong>${app.company_name}</strong>
+        (${app.job_title || 'vacante H-2B'}) y aún no has recibido respuesta.</p>
+        <p>Movimos esta tarjeta a <strong>"Seguimiento"</strong> en tu CRM. Te recomendamos
+        escribirle a la empresa para preguntar por el estado de tu postulación.</p>
+        <p>Entra a tu <a href="https://h2b-fronted.vercel.app">Portal H-2B</a> para ver el detalle
+        y usar la plantilla de seguimiento del Kit de Inicio Rápido.</p>
+      `,
+    });
+
+    if (sendError) {
+      console.error(`Resend rechazó el correo día 7 para ${app.id}:`, sendError);
+      failures.push(`día7:${app.id} resend-error`);
+      continue;
+    }
+
+    const { error: updateError } = await supabase
+      .from('applications')
+      .update({ status: 'seguimiento', reminder_7_sent: true })
+      .eq('id', app.id);
+
+    if (updateError) {
+      console.error(`Correo día 7 enviado pero no se pudo promover ${app.id}:`, updateError);
+      failures.push(`día7:${app.id} update-error`);
+      continue;
+    }
+
+    promoted7++;
+  }
+
+  return NextResponse.json({
+    message: 'Recordatorios procesados',
+    promoted7,
+    reminders14,
+    closed21,
+    failures,
+  });
 }
