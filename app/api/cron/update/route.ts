@@ -2,7 +2,6 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { scrapeSeasonalJobs } from '../../../../src/scrapers/seasonalJobs';
 import { scrapeCareerOneStop } from '../../../../src/scrapers/careerOneStop';
-import { scrapeUSCIS } from '../../../../src/scrapers/uscisHub';
 import { linkJobsToSponsors } from '../../../../src/sponsors/linkJobs';
 
 export async function GET(request: Request) {
@@ -34,17 +33,9 @@ export async function GET(request: Request) {
       console.error('⚠️ No se pudo vincular ofertas con USCIS:', linkErr.message);
     }
 
-    let employersCount = 0;
-    try {
-      const employersRaw = await scrapeUSCIS();
-      employersCount = employersRaw ? employersRaw.length : 0;
-    } catch (uscisErr: any) {
-      console.warn('⚠️ Aviso en scraper USCIS:', uscisErr.message);
-    }
-
     // 2. Devolver respuesta exitosa (200 OK)
     return NextResponse.json(
-      { updated: true, jobs: jobs ? jobs.length : 0, careerOneStopCount, employers: employersCount, sponsorLinks },
+      { updated: true, jobs: jobs ? jobs.length : 0, careerOneStopCount, sponsorLinks },
       { status: 200 }
     );
   } catch (e: any) {
