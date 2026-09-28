@@ -1,4 +1,4 @@
-import { chromium } from 'playwright';
+import * as cheerio from 'cheerio';
 import { supabase } from '../db/supabase';
 
 // Scrapea los resultados de búsqueda "h2b" en CareerOneStop (portal de empleo
@@ -8,6 +8,11 @@ import { supabase } from '../db/supabase';
 // existe, se salta — nunca sobreescribe ni duplica una oferta del DOL.
 // Si el scraping falla (sitio caído, bloqueo, cambio de HTML), no lanza:
 // deja las ofertas de días anteriores tal como están.
+//
+// Es HTML servido por el servidor (no requiere ejecutar JavaScript), así que
+// se lee con fetch + cheerio. Nada de navegador headless: Vercel no incluye
+// el binario de Chromium en las funciones serverless, y usar Playwright aquí
+// tumbaba toda la ruta del cron con "Cannot find module browsers.json".
 
 interface RawRow {
   title: string;
@@ -30,7 +35,7 @@ interface JobRecord {
 
 const BASE_URL = 'https://www.careeronestop.org/Toolkit/Jobs/find-jobs-results.aspx';
 const SEARCH_QS = 'keyword=h2b&location=United%20States&radius=25&referer=/Toolkit/Jobs/find-jobs.aspx';
-// CareerOneStop bloquea con 403 al User-Agent por defecto de Chromium headless
+// CareerOneStop bloquea con 403 a peticiones sin un User-Agent de navegador
 const USER_AGENT =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36';
 // Margen de seguridad: hoy la búsqueda trae ~39 resultados (10 por página)
@@ -66,70 +71,87 @@ function parseDate(raw: string): string | null {
   return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
 }
 
+async function fetchResultsPage(curPage: number): Promise<string> {
+  const url = `${BASE_URL}?${SEARCH_QS}&curPage=${curPage}`;
+
+  // El sitio a veces responde 5xx de forma transitoria: 2 intentos antes de rendirse
+  let lastStatus: number | string = 'sin respuesta';
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    // El sitio a veces se queda colgado sin responder ni fallar: un fetch sin
+    // límite dejaría la función serverless corriendo hasta su propio timeout.
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 20000);
+    try {
+      const res = await fetch(url, {
+        signal: controller.signal,
+        headers: {
+          'User-Agent': USER_AGENT,
+          Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.9',
+        },
+      });
+      lastStatus = res.status;
+      if (res.ok) return await res.text();
+    } catch (err: any) {
+      lastStatus = err.name === 'AbortError' ? 'sin respuesta en 20s' : err.message || 'error de red';
+    } finally {
+      clearTimeout(timeout);
+    }
+    if (attempt < 2) await new Promise((r) => setTimeout(r, 3000));
+  }
+  throw new Error(`página ${curPage} respondió ${lastStatus}`);
+}
+
 async function scrapeAllPages(): Promise<RawRow[]> {
-  const browser = await chromium.launch();
-  try {
-    const context = await browser.newContext({ userAgent: USER_AGENT });
-    const page = await context.newPage();
+  const allRows: RawRow[] = [];
+  let totalExpected = Infinity;
 
-    const allRows: RawRow[] = [];
-    let totalExpected = Infinity;
-
-    for (let curPage = 1; curPage <= MAX_PAGES; curPage++) {
-      const url = `${BASE_URL}?${SEARCH_QS}&curPage=${curPage}`;
-
-      // El sitio a veces responde 5xx de forma transitoria: 2 intentos antes de rendirse
-      let res = null;
-      for (let attempt = 1; attempt <= 2; attempt++) {
-        res = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 45000 }).catch(() => null);
-        if (res && res.ok()) break;
-        if (attempt < 2) await page.waitForTimeout(3000);
-      }
-      if (!res || !res.ok()) {
-        console.warn(`⚠️ CareerOneStop página ${curPage} respondió ${res?.status() ?? 'sin respuesta'}, se detiene aquí.`);
-        break;
-      }
-      await page.waitForSelector('td[headers="thtitle"], #recordNumber', { timeout: 15000 }).catch(() => {});
-
-      if (curPage === 1) {
-        const totalText = await page.textContent('#recordNumber').catch(() => null);
-        const total = totalText ? parseInt(totalText.trim(), 10) : NaN;
-        if (!Number.isNaN(total)) totalExpected = total;
-        console.log(`🔎 CareerOneStop reporta ${Number.isFinite(totalExpected) ? totalExpected : '?'} resultados para "h2b".`);
-      }
-
-      const rows: RawRow[] = await page.$$eval('td[headers="thtitle"]', (tds) =>
-        tds.map((td) => {
-          const tr = td.closest('tr');
-          const a = td.querySelector('a.job-detail');
-          const companyDiv = tr?.querySelector('td[headers="thCompany"] div.notranslate');
-          const companyLines = (companyDiv?.textContent || '')
-            .split('\n')
-            .map((s) => s.trim())
-            .filter((s) => s && s !== 'Federal Contractor');
-          return {
-            title: a?.getAttribute('title')?.trim() || a?.textContent?.trim() || '',
-            href: a?.getAttribute('href') || null,
-            companyName: companyLines[0] || '',
-            locationText: tr?.querySelector('td[headers="thLocation"] div.notranslate')?.textContent?.trim() || '',
-            dateText: tr?.querySelector('td[headers="thDatePosted"] div.notranslate')?.textContent?.trim() || '',
-          };
-        })
-      );
-
-      if (rows.length === 0) {
-        console.log(`ℹ️ CareerOneStop página ${curPage} sin filas, se detiene aquí.`);
-        break;
-      }
-      allRows.push(...rows);
-
-      if (allRows.length >= totalExpected) break;
+  for (let curPage = 1; curPage <= MAX_PAGES; curPage++) {
+    let html: string;
+    try {
+      html = await fetchResultsPage(curPage);
+    } catch (err: any) {
+      console.warn(`⚠️ CareerOneStop: ${err.message}, se detiene aquí.`);
+      break;
     }
 
-    return allRows;
-  } finally {
-    await browser.close();
+    const $ = cheerio.load(html);
+
+    if (curPage === 1) {
+      const total = parseInt($('#recordNumber').first().text().trim(), 10);
+      if (!Number.isNaN(total)) totalExpected = total;
+      console.log(`🔎 CareerOneStop reporta ${Number.isFinite(totalExpected) ? totalExpected : '?'} resultados para "h2b".`);
+    }
+
+    const rows: RawRow[] = [];
+    $('td[headers="thtitle"]').each((_, td) => {
+      const $td = $(td);
+      const $tr = $td.closest('tr');
+      const $a = $td.find('a.job-detail').first();
+      const companyLines = ($tr.find('td[headers="thCompany"] div.notranslate').first().text() || '')
+        .split('\n')
+        .map((s) => s.trim())
+        .filter((s) => s && s !== 'Federal Contractor');
+
+      rows.push({
+        title: ($a.attr('title') || $a.text() || '').trim(),
+        href: $a.attr('href') || null,
+        companyName: companyLines[0] || '',
+        locationText: $tr.find('td[headers="thLocation"] div.notranslate').first().text().trim(),
+        dateText: $tr.find('td[headers="thDatePosted"] div.notranslate').first().text().trim(),
+      });
+    });
+
+    if (rows.length === 0) {
+      console.log(`ℹ️ CareerOneStop página ${curPage} sin filas, se detiene aquí.`);
+      break;
+    }
+    allRows.push(...rows);
+
+    if (allRows.length >= totalExpected) break;
   }
+
+  return allRows;
 }
 
 export async function scrapeCareerOneStop(): Promise<number> {
