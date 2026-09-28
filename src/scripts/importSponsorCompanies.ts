@@ -51,7 +51,16 @@ async function run() {
   // Col K (10): Work Site State
   // Col L (11): Consular_Processed
   // Col M (12): Hourly Wage
-  // Col O (14): Total Approved Visas
+  // Cada fila es UNA petición de UN tipo (nueva/continuación/concurrente/cambio de
+  // empleador/enmendada); solo la columna de ese tipo trae el conteo real, las
+  // otras 5 vienen en blanco. Por eso se suman las 6 de aprobadas y las 6 de
+  // negadas — no basta con leer una sola columna.
+  // Col O (14): New Employment Approval      Col P (15): New Employment Denial
+  // Col Q (16): Continuation Approval         Col R (17): Continuation Denial
+  // Col S (18): Change w/ Same Employer Appr. Col T (19): Change w/ Same Employer Denial
+  // Col U (20): New Concurrent Approval       Col V (21): New Concurrent Denial
+  // Col W (22): Change of Employer Approval   Col X (23): Change of Employer Denial
+  // Col Y (24): Amended Approval              Col Z (25): Amended Denial
 
   for (let i = 1; i < rawRows.length; i++) {
     const row = rawRows[i];
@@ -73,7 +82,23 @@ async function run() {
     const worksiteState = String(row[10] || '').trim();
     const consular = String(row[11] || '').trim();
     const wage = String(row[12] || '').trim();
-    const approvedVisas = Number(row[14]) || 1;
+    // Antes solo se leía la col. 14 (con `|| 1` de respaldo): una petición de
+    // Continuación/Concurrente/Cambio de empleador/Enmendada quedaba en 0 en esa
+    // columna y el respaldo la contaba como "1 aprobada" en vez de su valor real.
+    const approvedVisas =
+      (Number(row[14]) || 0) +
+      (Number(row[16]) || 0) +
+      (Number(row[18]) || 0) +
+      (Number(row[20]) || 0) +
+      (Number(row[22]) || 0) +
+      (Number(row[24]) || 0);
+    const deniedVisas =
+      (Number(row[15]) || 0) +
+      (Number(row[17]) || 0) +
+      (Number(row[19]) || 0) +
+      (Number(row[21]) || 0) +
+      (Number(row[23]) || 0) +
+      (Number(row[25]) || 0);
 
     if (!companies.has(key)) {
       companies.set(key, {
@@ -97,6 +122,7 @@ async function run() {
 
     const c = companies.get(key)!;
     c.total_approved += approvedVisas;
+    c.total_denied += deniedVisas;
     c.petition_count += 1;
     // Basta una petición con proceso consular para saber que contrata desde fuera de EE. UU.
     if (consular.toLowerCase() === 'yes') c.consular_processed = 'Yes';
