@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
+import { generateContentWithRetry, isTransientGeminiError } from '../../../../src/ai/callGemini';
 
 function corsHeaders(origin: string | null) {
   return {
@@ -75,7 +76,9 @@ Responde ÚNICAMENTE con un objeto JSON con estas claves:
 - "full_text": el CV completo en inglés, en texto plano, listo para copiar o descargar (con secciones SUMMARY, EXPERIENCE, SKILLS).
 - "notes_es": un string en español con 1-2 frases sugiriendo qué información le faltó dar (fechas, nombres de empresas, logros con números) para mejorar el CV la próxima vez. Si no falta nada importante, deja este campo vacío.`;
 
-    const response = await ai.models.generateContent({
+    // Gemini a veces responde 503 "high demand" de forma pasajera; 2 reintentos
+    // silenciosos antes de rendirse cubren casi todos esos casos.
+    const response = await generateContentWithRetry(ai, {
       model: 'gemini-3.6-flash',
       contents: [{ role: 'user', parts: [{ text: promptText }] }],
       config: { responseMimeType: 'application/json' },
@@ -86,15 +89,13 @@ Responde ÚNICAMENTE con un objeto JSON con estas claves:
   } catch (err: any) {
     console.error('Error generando CV con Gemini:', err);
     const msg = err.message || '';
-    const isRateLimit =
-      err.status === 429 || msg.includes('429') || msg.toUpperCase().includes('RESOURCE_EXHAUSTED') || msg.toUpperCase().includes('QUOTA');
 
-    if (isRateLimit) {
+    if (isTransientGeminiError(msg)) {
       return NextResponse.json(
         { errorCode: 'RATE_LIMIT', error: 'Hemos recibido mucho tráfico en este momento. Intenta de nuevo en unos minutos.' },
         { status: 429, headers }
       );
     }
-    return NextResponse.json({ errorCode: 'GENERIC', error: msg || 'Error del servidor' }, { status: 500, headers });
+    return NextResponse.json({ errorCode: 'GENERIC', error: 'No se pudo generar el CV. Intenta de nuevo.' }, { status: 500, headers });
   }
 }

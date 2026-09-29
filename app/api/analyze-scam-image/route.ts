@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
+import { generateContentWithRetry, isTransientGeminiError } from '../../../src/ai/callGemini';
 
 function corsHeaders(origin: string | null) {
   return {
@@ -73,7 +74,9 @@ Responde ÚNICAMENTE con un objeto JSON estricto con las claves: "nivel" ("alto"
       },
     }));
 
-    const response = await ai.models.generateContent({
+    // Gemini a veces responde 503 "high demand" de forma pasajera; 2 reintentos
+    // silenciosos antes de rendirse cubren casi todos esos casos.
+    const response = await generateContentWithRetry(ai, {
       model: 'gemini-3.6-flash',
       contents: [
         {
@@ -95,13 +98,8 @@ Responde ÚNICAMENTE con un objeto JSON estricto con las claves: "nivel" ("alto"
     console.error('Error procesando la imagen con Gemini:', err);
 
     const errorMessage = err.message || '';
-    const isRateLimit =
-      err.status === 429 ||
-      errorMessage.includes('429') ||
-      errorMessage.toUpperCase().includes('RESOURCE_EXHAUSTED') ||
-      errorMessage.toUpperCase().includes('QUOTA');
 
-    if (isRateLimit) {
+    if (isTransientGeminiError(errorMessage)) {
       return NextResponse.json(
         {
           errorCode: 'RATE_LIMIT',
@@ -112,7 +110,7 @@ Responde ÚNICAMENTE con un objeto JSON estricto con las claves: "nivel" ("alto"
     }
 
     return NextResponse.json(
-      { errorCode: 'GENERIC', error: err.message || 'Error del servidor' },
+      { errorCode: 'GENERIC', error: 'No se pudo analizar la imagen. Intenta de nuevo.' },
       { status: 500, headers }
     );
   }
