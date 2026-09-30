@@ -157,11 +157,18 @@ export async function GET(request: Request) {
   // ======================================================
   // PASO 3 — DÍA 7: promueve "postulado" → "seguimiento"
   // y envía el primer aviso de seguimiento
+  //
+  // Incluye también 'seguimiento': si la persona mueve la tarjeta a mano
+  // con el botón del CRM antes de que corra el cron, la fila deja de estar
+  // en 'postulado' y el filtro original nunca la volvía a encontrar — el
+  // correo de día 7 se saltaba para siempre aunque reminder_7_sent
+  // siguiera en false. Acotado a <14 días para no chocar con el correo de
+  // día 14 (PASO 2, ya corrido) si el catch-up llega tarde.
   // ======================================================
   const { data: day7Candidates, error: day7Error } = await supabase
     .from('applications')
     .select('*')
-    .eq('status', 'postulado')
+    .in('status', ['postulado', 'seguimiento'])
     .eq('reminder_7_sent', false);
 
   if (day7Error) {
@@ -169,7 +176,8 @@ export async function GET(request: Request) {
   }
 
   for (const app of day7Candidates || []) {
-    if (daysSinceApplied(app) < 7) continue;
+    const days = daysSinceApplied(app);
+    if (days < 7 || days >= 14) continue;
 
     const email = await getUserEmail(app.user_id);
     if (!email) {
