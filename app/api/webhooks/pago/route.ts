@@ -1,7 +1,15 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+import { timingSafeEqual } from "crypto";
 
 export async function POST(request: Request) {
+  // Sin WEBHOOK_SECRET configurado el webhook queda cerrado: nadie puede activar ni revocar accesos.
+  const secret = process.env.WEBHOOK_SECRET;
+  const sent = (request.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
+  if (!secret || sent.length !== secret.length || !timingSafeEqual(Buffer.from(sent), Buffer.from(secret))) {
+    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  }
+
   try {
     const body = await request.json();
     
@@ -50,6 +58,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ message: "Evento recibido pero sin accion requerida" }, { status: 200 });
   } catch (error: any) {
     console.error("Error en Webhook de Pago:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: "No se pudo procesar el evento." }, { status: 500 });
   }
 }
