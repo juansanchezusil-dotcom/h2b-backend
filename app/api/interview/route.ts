@@ -1,12 +1,13 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
-import { generateContentWithRetry, isTransientGeminiError } from '../../../src/ai/callGemini';
+import { guardAiRequest } from '../../../src/ai/guard';
+import { generateTextWithFallback, isTransientGeminiError } from '../../../src/ai/callGemini';
 
 function corsHeaders(origin: string | null) {
   return {
     'Access-Control-Allow-Origin': origin || '*',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
   };
 }
 
@@ -24,6 +25,9 @@ export async function POST(request: Request) {
   const headers = corsHeaders(origin);
 
   try {
+    const blocked = await guardAiRequest(request, headers);
+    if (blocked) return blocked;
+
     const body = await request.json();
     const mode: string = body.mode || 'questions';
 
@@ -53,13 +57,13 @@ Responde ÚNICAMENTE con un objeto JSON con la clave "questions": un array de 6 
 - "question_es": traducción al español, solo para que el candidato entienda qué le preguntan.
 - "tip_es": 1 frase en español sobre qué busca escuchar el entrevistador con esa pregunta.`;
 
-      const response = await generateContentWithRetry(ai, {
+      const responseText = await generateTextWithFallback(ai, {
         model: 'gemini-3.6-flash',
         contents: [{ role: 'user', parts: [{ text: promptText }] }],
         config: { responseMimeType: 'application/json' },
       });
 
-      const parsed = JSON.parse(response.text || '{}');
+      const parsed = JSON.parse(responseText || '{}');
       return NextResponse.json(parsed, { status: 200, headers });
     }
 
@@ -86,13 +90,13 @@ Responde ÚNICAMENTE con un objeto JSON con las claves:
 - "feedback_es": el feedback en español (2-4 líneas).
 - "model_answer_en": la respuesta modelo en inglés.`;
 
-      const response = await generateContentWithRetry(ai, {
+      const responseText = await generateTextWithFallback(ai, {
         model: 'gemini-3.6-flash',
         contents: [{ role: 'user', parts: [{ text: promptText }] }],
         config: { responseMimeType: 'application/json' },
       });
 
-      const parsed = JSON.parse(response.text || '{}');
+      const parsed = JSON.parse(responseText || '{}');
       return NextResponse.json(parsed, { status: 200, headers });
     }
 

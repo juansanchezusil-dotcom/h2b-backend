@@ -1,12 +1,13 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
-import { generateContentWithRetry, isTransientGeminiError } from '../../../../src/ai/callGemini';
+import { guardAiRequest } from '../../../../src/ai/guard';
+import { generateTextWithFallback, isTransientGeminiError } from '../../../../src/ai/callGemini';
 
 function corsHeaders(origin: string | null) {
   return {
     'Access-Control-Allow-Origin': origin || '*',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
   };
 }
 
@@ -29,6 +30,9 @@ export async function POST(request: Request) {
   const headers = corsHeaders(origin);
 
   try {
+    const blocked = await guardAiRequest(request, headers);
+    if (blocked) return blocked;
+
     const body = await request.json();
     const emailType: string = body.emailType || 'initial';
     const jobTitle: string = body.jobTitle || 'the H-2B position';
@@ -91,13 +95,13 @@ Responde ÚNICAMENTE con un objeto JSON con estas claves:
 
     // Gemini a veces responde 503 "high demand" de forma pasajera; 2 reintentos
     // silenciosos antes de rendirse cubren casi todos esos casos.
-    const response = await generateContentWithRetry(ai, {
+    const responseText = await generateTextWithFallback(ai, {
       model: 'gemini-3.6-flash',
       contents: [{ role: 'user', parts: [{ text: promptText }] }],
       config: { responseMimeType: 'application/json' },
     });
 
-    const parsed = JSON.parse(response.text || '{}');
+    const parsed = JSON.parse(responseText || '{}');
     return NextResponse.json(parsed, { status: 200, headers });
   } catch (err: any) {
     console.error('Error generando correo con Gemini:', err);

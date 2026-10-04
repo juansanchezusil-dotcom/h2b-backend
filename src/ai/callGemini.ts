@@ -41,3 +41,55 @@ export async function generateContentWithRetry(
   }
   throw lastError;
 }
+
+const HAIKU_MODEL = 'claude-haiku-4-5-20251001';
+
+// Convierte el prompt de Gemini (texto + imágenes inline) al formato de Claude.
+function toClaudeContent(contents: any) {
+  const parts: any[] = contents?.[0]?.parts || [];
+  return parts.map((p) =>
+    p.inlineData
+      ? { type: 'image', source: { type: 'base64', media_type: p.inlineData.mimeType, data: p.inlineData.data } }
+      : { type: 'text', text: p.text || '' }
+  );
+}
+
+async function callHaiku(contents: any): Promise<string> {
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'x-api-key': process.env.ANTHROPIC_API_KEY!,
+      'anthropic-version': '2023-06-01',
+    },
+    body: JSON.stringify({
+      model: HAIKU_MODEL,
+      max_tokens: 4096,
+      messages: [
+        { role: 'user', content: toClaudeContent(contents) },
+        // Prellenar con "{" obliga a Claude a responder directo con el JSON
+        { role: 'assistant', content: '{' },
+      ],
+    }),
+  });
+  if (!res.ok) throw new Error(`Haiku ${res.status}: ${await res.text()}`);
+  const data = await res.json();
+  return '{' + (data.content?.[0]?.text || '');
+}
+
+// Gemini primero (con reintentos). Si sigue saturado y hay ANTHROPIC_API_KEY,
+// responde con Claude Haiku para que la persona no vea el error de "mucho tráfico".
+export async function generateTextWithFallback(
+  ai: GoogleGenAI,
+  params: Parameters<GoogleGenAI['models']['generateContent']>[0]
+): Promise<string> {
+  try {
+    const response = await generateContentWithRetry(ai, params);
+    return response.text || '';
+  } catch (err: any) {
+    const message = err?.message || String(err);
+    if (!process.env.ANTHROPIC_API_KEY || !isTransientGeminiError(message)) throw err;
+    console.warn('⚠️ Gemini saturado, respondiendo con Claude Haiku:', message);
+    return callHaiku(params.contents);
+  }
+}
