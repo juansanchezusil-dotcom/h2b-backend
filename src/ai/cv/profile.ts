@@ -1,4 +1,6 @@
-import type { CandidateProfile, Experience, Gap } from './types';
+import type { Autonomy, CandidateProfile, Experience, Gap } from './types';
+
+const AUTONOMY_LEVELS: Autonomy[] = ['conoce', 'ayudaba', 'realizaba', 'solo', 'avanzado'];
 
 const clip = (v: unknown, max = 300) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
 
@@ -22,15 +24,16 @@ function union(a: string[], b: string[], maxItems = 15): string[] {
 export function emptyProfile(): CandidateProfile {
   return {
     fullName: '', city: '', phone: '', email: '', targetRole: '', industry: '', englishLevel: '',
-    route: '', experiences: [], education: [], certifications: [], languages: [], skills: [],
+    route: '', experiences: [], education: [], certifications: [], languages: [], skills: [], notDone: [],
   };
 }
 
 function cleanExperience(raw: any, fallbackId: string): Experience {
   const id = /^e\d{1,2}$/.test(clip(raw?.id, 6)) ? clip(raw.id, 6) : fallbackId;
   const kind = raw?.kind === 'formal' || raw?.kind === 'informal' ? raw.kind : '';
+  const autonomy = AUTONOMY_LEVELS.includes(raw?.autonomy) ? raw.autonomy : '';
   return {
-    id, kind,
+    id, kind, autonomy, supervision: clip(raw?.supervision, 100),
     title: clip(raw?.title, 100), company: clip(raw?.company, 100), location: clip(raw?.location, 100),
     dates: clip(raw?.dates, 80), duration: clip(raw?.duration, 80),
     tasks: list(raw?.tasks), tools: list(raw?.tools), results: list(raw?.results),
@@ -54,6 +57,7 @@ export function sanitizeProfile(raw: any): CandidateProfile {
   p.certifications = list(raw.certifications);
   p.languages = list(raw.languages);
   p.skills = list(raw.skills, 20);
+  p.notDone = list(raw.notDone);
   const exps = Array.isArray(raw.experiences) ? raw.experiences.slice(0, 8) : [];
   p.experiences = exps.map((e: any, i: number) => cleanExperience(e, `e${i + 1}`));
   return p;
@@ -71,6 +75,7 @@ export function mergeProfile(base: CandidateProfile, rawUpdates: any): Candidate
   out.certifications = union(out.certifications, up.certifications);
   out.languages = union(out.languages, up.languages);
   out.skills = union(out.skills, up.skills, 20);
+  out.notDone = union(out.notDone, up.notDone);
 
   const rawExps = Array.isArray(rawUpdates?.experiences) ? rawUpdates.experiences.slice(0, 8) : [];
   rawExps.forEach((rawExp: any) => {
@@ -83,7 +88,7 @@ export function mergeProfile(base: CandidateProfile, rawUpdates: any): Candidate
     };
     const incoming = cleanExperience(rawExp, existing ? existing.id : nextId());
     if (existing) {
-      (['kind', 'title', 'company', 'location', 'dates', 'duration'] as const).forEach((k) => {
+      (['kind', 'autonomy', 'supervision', 'title', 'company', 'location', 'dates', 'duration'] as const).forEach((k) => {
         if (incoming[k]) (existing as any)[k] = incoming[k];
       });
       existing.tasks = union(existing.tasks, incoming.tasks);
@@ -113,6 +118,9 @@ export function computeGaps(p: CandidateProfile): Gap[] {
   if (!p.experiences.some((e) => e.tools.length > 0)) {
     gaps.push({ key: 'tools', level: 'important', label: 'Herramientas o equipos que has usado' });
   }
+  if (p.experiences.some((e) => e.tasks.length > 0 && !e.autonomy)) {
+    gaps.push({ key: 'autonomy', level: 'important', label: 'Qué tan independiente eras en esas tareas' });
+  }
   return gaps;
 }
 
@@ -140,6 +148,7 @@ export function profileToPlainText(p: CandidateProfile): string {
         e.tasks.length ? `Tareas: ${e.tasks.join('; ')}.` : '',
         e.tools.length ? `Herramientas: ${e.tools.join(', ')}.` : '',
         e.results.length ? `Resultados: ${e.results.join('; ')}.` : '',
+        e.autonomy ? `Nivel: ${e.autonomy}.` : '',
       ].filter(Boolean);
       return `${head}. ${parts.join(' ')}`.trim();
     })

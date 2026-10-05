@@ -1,6 +1,11 @@
+export type Autonomy = '' | 'conoce' | 'ayudaba' | 'realizaba' | 'solo' | 'avanzado';
+
 export interface Experience {
   id: string; // e1, e2... estable durante toda la entrevista
   kind: 'formal' | 'informal' | '';
+  // Qué tan independiente era en esas tareas. Define los verbos del CV (Assisted vs. Performed...).
+  autonomy: Autonomy;
+  supervision: string; // a quién supervisaba o entrenaba, solo si lo dijo
   title: string;
   company: string;
   location: string;
@@ -27,6 +32,8 @@ export interface CandidateProfile {
   certifications: string[];
   languages: string[];
   skills: string[];
+  // Lo que NO sabe hacer o solo observó. Nunca va al CV; sirve para no exagerar.
+  notDone: string[];
 }
 
 export type GapLevel = 'critical' | 'important';
