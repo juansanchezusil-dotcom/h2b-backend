@@ -47,11 +47,12 @@ const HAIKU_MODEL = 'claude-haiku-4-5-20251001';
 // Convierte el prompt de Gemini (texto + imágenes inline) al formato de Claude.
 function toClaudeContent(contents: any) {
   const parts: any[] = contents?.[0]?.parts || [];
-  return parts.map((p) =>
-    p.inlineData
-      ? { type: 'image', source: { type: 'base64', media_type: p.inlineData.mimeType, data: p.inlineData.data } }
-      : { type: 'text', text: p.text || '' }
-  );
+  return parts.map((p) => {
+    if (!p.inlineData) return { type: 'text', text: p.text || '' };
+    const source = { type: 'base64', media_type: p.inlineData.mimeType, data: p.inlineData.data };
+    // Claude recibe los PDF como "document" y las fotos como "image"
+    return { type: p.inlineData.mimeType === 'application/pdf' ? 'document' : 'image', source };
+  });
 }
 
 async function callHaiku(contents: any): Promise<string> {
