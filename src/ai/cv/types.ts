@@ -1,4 +1,5 @@
-export type Autonomy = '' | 'conoce' | 'ayudaba' | 'realizaba' | 'solo' | 'avanzado';
+// Escala de 5 niveles (el 0, "nunca lo hizo", no se guarda: simplemente no es experiencia)
+export type Autonomy = '' | 'observo' | 'ayudaba' | 'supervisado' | 'solo' | 'ensena';
 
 export interface Experience {
   id: string; // e1, e2... estable durante toda la entrevista

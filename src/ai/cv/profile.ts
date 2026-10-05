@@ -1,6 +1,9 @@
 import type { Autonomy, CandidateProfile, Experience, Gap } from './types';
 
-const AUTONOMY_LEVELS: Autonomy[] = ['conoce', 'ayudaba', 'realizaba', 'solo', 'avanzado'];
+const AUTONOMY_LEVELS: Autonomy[] = ['observo', 'ayudaba', 'supervisado', 'solo', 'ensena'];
+
+// Borradores guardados con la escala anterior: se convierten al nivel más cercano sin subirlo
+const LEGACY_AUTONOMY: Record<string, Autonomy> = { conoce: 'observo', realizaba: 'supervisado', avanzado: 'ensena' };
 
 const clip = (v: unknown, max = 300) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
 
@@ -32,7 +35,7 @@ export function emptyProfile(): CandidateProfile {
 function cleanExperience(raw: any, fallbackId: string): Experience {
   const id = /^e\d{1,2}$/.test(clip(raw?.id, 6)) ? clip(raw.id, 6) : fallbackId;
   const kind = raw?.kind === 'formal' || raw?.kind === 'informal' ? raw.kind : '';
-  const autonomy = AUTONOMY_LEVELS.includes(raw?.autonomy) ? raw.autonomy : '';
+  const autonomy: Autonomy = AUTONOMY_LEVELS.includes(raw?.autonomy) ? raw.autonomy : LEGACY_AUTONOMY[raw?.autonomy] || '';
   return {
     id, kind, autonomy, supervision: clip(raw?.supervision, 100),
     title: clip(raw?.title, 100), company: clip(raw?.company, 100), location: clip(raw?.location, 100),

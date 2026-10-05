@@ -39,6 +39,11 @@ export async function POST(request: Request) {
       .slice(-8)
       .map((t: any) => ({ role: t.role, text: t.text.slice(0, 1500) }));
     const pastedCv: string = typeof body.pastedCv === 'string' ? body.pastedCv.trim() : '';
+    const clip = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
+    const job =
+      body.job && typeof body.job === 'object'
+        ? { title: clip(body.job.title, 120), employer_name: clip(body.job.employer_name, 120), job_duties: clip(body.job.job_duties, 1500) }
+        : null;
     const doc = body.document;
 
     let documentPart: { inlineData: { mimeType: string; data: string } } | null = null;
@@ -67,6 +72,7 @@ export async function POST(request: Request) {
       pastedCv,
       hasDocument: !!documentPart,
       isFirstTurn: turns.length === 0 && !pastedCv && !documentPart,
+      job,
     });
 
     const text = await generateTextWithFallback(ai, {

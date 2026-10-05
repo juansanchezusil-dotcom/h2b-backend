@@ -1,3 +1,5 @@
+import { renderKnowledgeForCv, renderKnowledgeForInterview } from './bankKnowledge';
+
 // Bancos de preguntas por puesto para la entrevista del CV. Son un MENÚ de temas que el
 // modelo consulta para elegir la siguiente pregunta; no un cuestionario: se hace UNA pregunta
 // por turno y solo de lo que falta o de lo que la respuesta anterior abrió.
@@ -786,5 +788,12 @@ export function renderBankPrompt(targetRole: string, industry: string): string {
     return `No hay un banco específico para este puesto: guíate por el módulo universal y por lo que el puesto pida.\n\n${universal}`;
   }
   const english = bank.englishDemand === 'high' ? `\n\n${ENGLISH_BLOCK}` : '';
-  return `BANCO DE PREGUNTAS DEL PUESTO — ${bank.label} (menú de temas: elige UNO por turno según lo que falte o lo que la respuesta anterior abrió; nunca los hagas todos):\n${renderSections(bank.sections)}\n\nREGLAS DE ESTE OFICIO:\n${bank.rules.map((r) => `  - ${r}`).join('\n')}${english}\n\n${universal}`;
+  const knowledge = renderKnowledgeForInterview(bank.id);
+  return `BANCO DE PREGUNTAS DEL PUESTO — ${bank.label} (menú de temas: elige UNO por turno según lo que falte o lo que la respuesta anterior abrió; nunca los hagas todos):\n${renderSections(bank.sections)}\n\nREGLAS DE ESTE OFICIO:\n${bank.rules.map((r) => `  - ${r}`).join('\n')}${english}${knowledge ? `\n\n${knowledge}` : ''}\n\n${universal}`;
+}
+
+// Palabras clave y habilidades transferibles del puesto para el prompt del CV ('' si no hay banco)
+export function keywordsForCv(targetRole: string, industry: string): string {
+  const bank = pickBank(targetRole, industry);
+  return bank ? renderKnowledgeForCv(bank.id) : '';
 }

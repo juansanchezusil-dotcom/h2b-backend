@@ -27,6 +27,23 @@ export interface BuiltCv {
 const clip = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
 const numbersIn = (s: string) => s.match(/\d+(?:[.,]\d+)?/g) || [];
 
+// ---- Control de "ayudé" vs. "fui responsable de"
+// Liderar o supervisar solo se puede decir si la persona enseña o supervisa a otros (nivel "ensena")
+// y lo dijo (campo supervision). "Trained in safety" (recibió capacitación) no cuenta como liderazgo.
+const LEADERSHIP =
+  /\b(led|supervised|supervising|directed|oversaw|headed|coached|mentored|trained (new|other|junior|staff|team|co-?workers?|employees|colleagues|\d+)|managed (an? |the |our )?([\w-]+ ){0,2}(team|staff|crew|employees|workers|people|group|department|shift)|in charge of (an? |the |our )?([\w-]+ ){0,2}(team|staff|crew|people|workers|shift))\b/i;
+const OWN_RESPONSIBILITY = /\b(responsible for|in charge of)\b/i;
+const INDEPENDENCE = /\b(independently|single-handedly|on (his|her|their) own|solely)\b/i;
+
+// true si la frase afirma más de lo que el nivel de la experiencia respalda
+function overstates(text: string, level: string, canLead: boolean): boolean {
+  if (LEADERSHIP.test(text) && !canLead) return true;
+  // sin nivel declarado se trata como el más modesto ("ayudaba")
+  if ((level === '' || level === 'ayudaba') && (OWN_RESPONSIBILITY.test(text) || INDEPENDENCE.test(text))) return true;
+  if (level === 'supervisado' && INDEPENDENCE.test(text)) return true;
+  return false;
+}
+
 const ENGLISH_LEVELS: Record<string, string> = {
   basico: 'Basic', 'básico': 'Basic', intermedio: 'Intermediate', avanzado: 'Advanced',
   'avanzado / fluido': 'Advanced', fluido: 'Fluent', nativo: 'Native',
@@ -47,10 +64,17 @@ export function buildVerifiedCv(profile: CandidateProfile, model: any): { cv: Bu
   const allowedNumbers = new Set(numbersIn(JSON.stringify(profile)));
   const numbersOk = (text: string) => numbersIn(text).every((n) => allowedNumbers.has(n));
   let removed = 0;
+  const anyoneLeads = profile.experiences.some((e) => e.autonomy === 'ensena' && !!e.supervision);
 
   const modelExps: any[] = Array.isArray(model?.experiences) ? model.experiences : [];
-  const experiences: CvExperience[] = profile.experiences.map((exp) => {
+  const experiences: CvExperience[] = profile.experiences.flatMap((exp): CvExperience[] => {
     const m = modelExps.find((x) => x?.id === exp.id) || {};
+    // Si solo lo vio hacer, no es experiencia: no entra al CV
+    if (exp.autonomy === 'observo') {
+      removed += Array.isArray(m.bullets) ? m.bullets.length : 0;
+      return [];
+    }
+    const canLead = exp.autonomy === 'ensena' && !!exp.supervision;
     const titleEn = clip(m.title_en, 100);
     const datesEn = clip(m.dates_en, 80);
     const title = titleEn && numbersOk(titleEn) ? titleEn : exp.title;
@@ -58,26 +82,30 @@ export function buildVerifiedCv(profile: CandidateProfile, model: any): { cv: Bu
     const useCompany = !informal && !!exp.company;
     const bullets: CvBullet[] = [];
     for (const b of Array.isArray(m.bullets) ? m.bullets : []) {
-      const text = clip(b?.text, 400);
+      let text = clip(b?.text, 400);
       const refs: string[] = Array.isArray(b?.refs) ? b.refs : [];
       const validRef = refs.some((r) => typeof r === 'string' && r.startsWith(`${exp.id}.`) && facts.has(r));
-      if (!text || !validRef || !numbersOk(text)) {
+      if (!text || !validRef || !numbersOk(text) || overstates(text, exp.autonomy, canLead)) {
         removed++;
         continue;
       }
+      // "Managed inventory" sin liderazgo: se suaviza a "Handled inventory" en vez de perder la frase
+      if (!canLead && /^managed\b/i.test(text)) text = text.replace(/^managed\b/i, 'Handled');
       bullets.push({ text });
     }
-    return {
-      heading: useCompany ? exp.company : title,
-      subtitle: useCompany ? title : informal ? 'Family / informal work' : '',
-      location: exp.location,
-      dates: datesEn && numbersOk(datesEn) ? datesEn : exp.dates || exp.duration,
-      bullets: bullets.slice(0, 4),
-    };
+    return [
+      {
+        heading: useCompany ? exp.company : title,
+        subtitle: useCompany ? title : informal ? 'Family / informal work' : '',
+        location: exp.location,
+        dates: datesEn && numbersOk(datesEn) ? datesEn : exp.dates || exp.duration,
+        bullets: bullets.slice(0, 4),
+      },
+    ];
   });
 
   const sentences = clip(model?.summary, 700).split(/(?<=[.!?])\s+/).filter(Boolean);
-  const keptSentences = sentences.filter((s) => numbersOk(s));
+  const keptSentences = sentences.filter((s) => numbersOk(s) && (anyoneLeads || !LEADERSHIP.test(s)));
   removed += sentences.length - keptSentences.length;
 
   const strings = (v: unknown, max: number, maxLen: number) =>
@@ -178,12 +206,15 @@ export function buildVerifiedLetter(
   job: { title?: string; employer_name?: string; job_duties?: string } | null
 ): { letter: string; removed: number } {
   const allowedNumbers = new Set(numbersIn(JSON.stringify(profile) + ' ' + JSON.stringify(job || {})));
+  const anyoneLeads = profile.experiences.some((e) => e.autonomy === 'ensena' && !!e.supervision);
   let removed = 0;
   const paragraphs: string[] = [];
 
   for (const para of (Array.isArray(model?.paragraphs) ? model.paragraphs : []).slice(0, 3)) {
     const sentences = clip(para, 900).split(/(?<=[.!?])\s+/).filter(Boolean);
-    const kept = sentences.filter((s) => numbersIn(s).every((n) => allowedNumbers.has(n)) && !/sponsor/i.test(s));
+    const kept = sentences.filter(
+      (s) => numbersIn(s).every((n) => allowedNumbers.has(n)) && !/sponsor/i.test(s) && (anyoneLeads || !LEADERSHIP.test(s))
+    );
     removed += sentences.length - kept.length;
     if (kept.length) paragraphs.push(kept.join(' '));
   }
