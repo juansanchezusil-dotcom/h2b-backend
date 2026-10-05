@@ -5,6 +5,7 @@ import { generateTextWithFallback, isTransientGeminiError } from '../../../../sr
 import { buildGeneratePrompt } from '../../../../src/ai/cv/prompts';
 import { computeGaps, profileToPlainText, sanitizeProfile } from '../../../../src/ai/cv/profile';
 import { buildVerifiedCv, cvToText, verifyRequirements } from '../../../../src/ai/cv/build';
+import { englishWarning } from '../../../../src/ai/cv/industryBanks';
 
 function corsHeaders(origin: string | null) {
   return {
@@ -74,7 +75,10 @@ export async function POST(request: Request) {
         ruta: profile.route,
         diagnostico_es: typeof parsed.diagnostico_es === 'string' ? parsed.diagnostico_es.slice(0, 600) : '',
         estrategia_es: typeof parsed.estrategia_es === 'string' ? parsed.estrategia_es.slice(0, 400) : '',
-        recomendaciones_es: strings(parsed.recomendaciones_es, 4),
+        recomendaciones_es: (() => {
+          const warning = englishWarning(profile.targetRole, profile.industry, profile.englishLevel);
+          return warning ? [warning, ...strings(parsed.recomendaciones_es, 4)] : strings(parsed.recomendaciones_es, 4);
+        })(),
         cv,
         full_text: cvToText(cv),
         base_cv_text: profileToPlainText(profile),
