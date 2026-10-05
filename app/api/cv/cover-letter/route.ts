@@ -2,9 +2,9 @@ import { NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
 import { guardAiRequest } from '../../../../src/ai/guard';
 import { generateTextWithFallback, isTransientGeminiError } from '../../../../src/ai/callGemini';
-import { buildGeneratePrompt } from '../../../../src/ai/cv/prompts';
-import { computeGaps, profileToPlainText, sanitizeProfile } from '../../../../src/ai/cv/profile';
-import { buildVerifiedCv, cvToText, verifyRequirements } from '../../../../src/ai/cv/build';
+import { buildCoverLetterPrompt } from '../../../../src/ai/cv/prompts';
+import { computeGaps, sanitizeProfile } from '../../../../src/ai/cv/profile';
+import { buildVerifiedLetter } from '../../../../src/ai/cv/build';
 
 function corsHeaders(origin: string | null) {
   return {
@@ -19,8 +19,10 @@ export async function OPTIONS(request: Request) {
   return new NextResponse(null, { status: 204, headers: corsHeaders(origin) });
 }
 
-// Genera el CV en inglés a partir del perfil armado en la entrevista. El modelo redacta,
-// pero el CV final lo arma el código con lo que se puede respaldar (ver buildVerifiedCv).
+const clip = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
+
+// Carta de presentación en inglés, de 3 párrafos, coherente con el perfil del candidato.
+// Es opcional y se pide aparte del CV para no gastar una llamada que quizá no se usa.
 export async function POST(request: Request) {
   const origin = request.headers.get('origin');
   const headers = corsHeaders(origin);
@@ -32,13 +34,9 @@ export async function POST(request: Request) {
     const body = await request.json();
     const profile = sanitizeProfile(body.profile);
     if (computeGaps(profile).some((g) => g.level === 'critical')) {
-      return NextResponse.json(
-        { error: 'Todavía falta información clave para armar tu CV. Sigue la conversación un poco más.' },
-        { status: 400, headers }
-      );
+      return NextResponse.json({ error: 'Primero completa tu perfil para poder armar la carta.' }, { status: 400, headers });
     }
 
-    const clip = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
     const job =
       body.job && typeof body.job === 'object'
         ? { title: clip(body.job.title, 120), employer_name: clip(body.job.employer_name, 120), job_duties: clip(body.job.job_duties, 1500) }
@@ -53,7 +51,7 @@ export async function POST(request: Request) {
 
     const text = await generateTextWithFallback(ai, {
       model: 'gemini-3.6-flash',
-      contents: [{ role: 'user', parts: [{ text: buildGeneratePrompt({ profile, job }) }] }],
+      contents: [{ role: 'user', parts: [{ text: buildCoverLetterPrompt({ profile, job }) }] }],
       config: { responseMimeType: 'application/json' },
     });
 
@@ -61,37 +59,27 @@ export async function POST(request: Request) {
     try {
       parsed = JSON.parse(text || '{}');
     } catch {
-      console.error('Generar CV: el modelo no devolvió JSON válido:', text.slice(0, 200));
-      return NextResponse.json({ errorCode: 'GENERIC', error: 'No se pudo generar el CV. Intenta de nuevo.' }, { status: 502, headers });
+      console.error('Carta: el modelo no devolvió JSON válido:', text.slice(0, 200));
+      return NextResponse.json({ errorCode: 'GENERIC', error: 'No se pudo generar la carta. Intenta de nuevo.' }, { status: 502, headers });
     }
 
-    const { cv, removed } = buildVerifiedCv(profile, parsed);
-    const strings = (v: unknown, max: number) =>
-      (Array.isArray(v) ? v : []).filter((x) => typeof x === 'string' && x.trim()).slice(0, max) as string[];
+    const { letter, removed } = buildVerifiedLetter(profile, parsed, job);
+    if (!letter) {
+      return NextResponse.json({ errorCode: 'GENERIC', error: 'No se pudo generar la carta. Intenta de nuevo.' }, { status: 502, headers });
+    }
 
     return NextResponse.json(
-      {
-        ruta: profile.route,
-        diagnostico_es: typeof parsed.diagnostico_es === 'string' ? parsed.diagnostico_es.slice(0, 600) : '',
-        estrategia_es: typeof parsed.estrategia_es === 'string' ? parsed.estrategia_es.slice(0, 400) : '',
-        recomendaciones_es: strings(parsed.recomendaciones_es, 4),
-        cv,
-        full_text: cvToText(cv),
-        base_cv_text: profileToPlainText(profile),
-        removed,
-        // Solo cuando el CV se adapta a una oferta concreta
-        requirements: job ? verifyRequirements(profile, parsed.requirements) : [],
-      },
+      { letter, notes_es: typeof parsed.notes_es === 'string' ? parsed.notes_es.slice(0, 400) : '', removed },
       { status: 200, headers }
     );
   } catch (err: any) {
-    console.error('Error generando el CV:', err);
+    console.error('Error generando la carta:', err);
     if (isTransientGeminiError(err?.message || '')) {
       return NextResponse.json(
         { errorCode: 'RATE_LIMIT', error: 'Hemos recibido mucho tráfico en este momento. Intenta de nuevo en unos minutos.' },
         { status: 429, headers }
       );
     }
-    return NextResponse.json({ errorCode: 'GENERIC', error: 'No se pudo generar el CV. Intenta de nuevo.' }, { status: 500, headers });
+    return NextResponse.json({ errorCode: 'GENERIC', error: 'No se pudo generar la carta. Intenta de nuevo.' }, { status: 500, headers });
   }
 }

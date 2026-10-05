@@ -120,3 +120,57 @@ export function cvToText(cv: BuiltCv): string {
   if (cv.languages.length) out.push('', 'LANGUAGES', cv.languages.join(' | '));
   return out.join('\n');
 }
+
+export type RequirementStatus = 'MATCH' | 'TRANSFERABLE' | 'MISSING' | 'UNKNOWN';
+
+export interface Requirement {
+  requirement_es: string;
+  status: RequirementStatus;
+}
+
+const STATUSES: RequirementStatus[] = ['MATCH', 'TRANSFERABLE', 'MISSING', 'UNKNOWN'];
+
+// Matriz oferta vs. candidato. Un requisito solo puede salir como MATCH o TRANSFERABLE si cita
+// al menos un dato real del candidato; si no, baja a UNKNOWN. Así un faltante nunca se convierte
+// en coincidencia por invención del modelo.
+export function verifyRequirements(profile: CandidateProfile, raw: unknown): Requirement[] {
+  const facts = factIndex(profile);
+  return (Array.isArray(raw) ? raw : [])
+    .slice(0, 8)
+    .map((r: any): Requirement | null => {
+      const text = clip(r?.requirement_es, 200);
+      if (!text) return null;
+      let status: RequirementStatus = STATUSES.includes(r?.status) ? r.status : 'UNKNOWN';
+      if (status === 'MATCH' || status === 'TRANSFERABLE') {
+        const refs: unknown[] = Array.isArray(r?.refs) ? r.refs : [];
+        if (!refs.some((ref) => typeof ref === 'string' && facts.has(ref))) status = 'UNKNOWN';
+      }
+      return { requirement_es: text, status };
+    })
+    .filter((r): r is Requirement => r !== null);
+}
+
+// Arma la carta con saludo y firma puestos por código. Cada oración debe tener solo números
+// que existan en los datos del candidato o en la oferta, y ninguna puede hablar de patrocinio.
+export function buildVerifiedLetter(
+  profile: CandidateProfile,
+  model: any,
+  job: { title?: string; employer_name?: string; job_duties?: string } | null
+): { letter: string; removed: number } {
+  const allowedNumbers = new Set(numbersIn(JSON.stringify(profile) + ' ' + JSON.stringify(job || {})));
+  let removed = 0;
+  const paragraphs: string[] = [];
+
+  for (const para of (Array.isArray(model?.paragraphs) ? model.paragraphs : []).slice(0, 3)) {
+    const sentences = clip(para, 900).split(/(?<=[.!?])\s+/).filter(Boolean);
+    const kept = sentences.filter((s) => numbersIn(s).every((n) => allowedNumbers.has(n)) && !/sponsor/i.test(s));
+    removed += sentences.length - kept.length;
+    if (kept.length) paragraphs.push(kept.join(' '));
+  }
+
+  const body = paragraphs.join('\n\n');
+  return {
+    removed,
+    letter: body ? `Dear Hiring Manager,\n\n${body}\n\nSincerely,\n${profile.fullName}` : '',
+  };
+}
