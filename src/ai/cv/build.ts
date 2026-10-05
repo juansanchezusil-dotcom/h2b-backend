@@ -5,20 +5,22 @@ export interface CvBullet {
   text: string;
 }
 export interface CvExperience {
-  title: string;
-  company: string;
+  heading: string; // la empresa (empleo formal) o el cargo (trabajo informal o sin empresa)
+  subtitle: string; // el cargo (empleo formal) o "Family / informal work"
   location: string;
   dates: string;
   bullets: CvBullet[];
 }
 export interface BuiltCv {
   header: { fullName: string; city: string; phone: string; email: string };
+  headline: string; // el puesto al que apunta, en inglés
   summary: string;
   experiences: CvExperience[];
   skills: string[];
   education: string[];
   certifications: string[];
   languages: string[];
+  availability: string;
   sectionTitle: string;
 }
 
@@ -51,6 +53,9 @@ export function buildVerifiedCv(profile: CandidateProfile, model: any): { cv: Bu
     const m = modelExps.find((x) => x?.id === exp.id) || {};
     const titleEn = clip(m.title_en, 100);
     const datesEn = clip(m.dates_en, 80);
+    const title = titleEn && numbersOk(titleEn) ? titleEn : exp.title;
+    const informal = exp.kind === 'informal';
+    const useCompany = !informal && !!exp.company;
     const bullets: CvBullet[] = [];
     for (const b of Array.isArray(m.bullets) ? m.bullets : []) {
       const text = clip(b?.text, 400);
@@ -63,11 +68,11 @@ export function buildVerifiedCv(profile: CandidateProfile, model: any): { cv: Bu
       bullets.push({ text });
     }
     return {
-      title: titleEn && numbersOk(titleEn) ? titleEn : exp.title,
-      company: exp.company,
+      heading: useCompany ? exp.company : title,
+      subtitle: useCompany ? title : informal ? 'Family / informal work' : '',
       location: exp.location,
       dates: datesEn && numbersOk(datesEn) ? datesEn : exp.dates || exp.duration,
-      bullets: bullets.slice(0, 6),
+      bullets: bullets.slice(0, 4),
     };
   });
 
@@ -78,46 +83,61 @@ export function buildVerifiedCv(profile: CandidateProfile, model: any): { cv: Bu
   const strings = (v: unknown, max: number, maxLen: number) =>
     (Array.isArray(v) ? v : []).map((x) => clip(x, maxLen)).filter(Boolean).slice(0, max);
 
-  const languages = profile.languages.filter((l) => !/english|ingl[eé]s/i.test(l));
-  if (profile.englishLevel) languages.push(`English (${englishLevelLabel(profile.englishLevel)})`);
+  // Como en la plantilla: Spanish, English, otros. El español nativo se da por hecho porque toda
+  // la entrevista se hace en español; el inglés sale solo con el nivel que la persona declaró.
+  const languages = ['Spanish: Native'];
+  if (profile.englishLevel) languages.push(`English: ${englishLevelLabel(profile.englishLevel)}`);
+  languages.push(...profile.languages.filter((l) => !/english|ingl[eé]s|spanish|espa[ñn]ol/i.test(l)));
+
+  const headlineEn = clip(model?.headline_en, 60);
+  const availabilityEn = clip(model?.availability_en, 300);
+  const availabilityParts: string[] = [];
+  if (profile.availability && availabilityEn && numbersOk(availabilityEn)) availabilityParts.push(availabilityEn);
+  // Solo se muestra cuando la persona dijo que sí tiene pasaporte vigente; nunca se incluye el número
+  if (profile.passport === 'yes') availabilityParts.push('Valid passport: Yes.');
 
   return {
     removed,
     cv: {
       header: { fullName: profile.fullName, city: profile.city, phone: profile.phone, email: profile.email },
+      headline: headlineEn && !/\d/.test(headlineEn) ? headlineEn : profile.targetRole,
       summary: keptSentences.join(' '),
       experiences,
       skills: strings(model?.skills, 10, 40),
       education: strings(model?.education, profile.education.length, 160),
       certifications: strings(model?.certifications, profile.certifications.length, 160),
       languages,
+      availability: availabilityParts.join(' '),
       sectionTitle: profile.route === 'C' ? 'RELEVANT PRACTICAL EXPERIENCE' : 'PROFESSIONAL EXPERIENCE',
     },
   };
 }
 
 // Texto plano del CV, armado por código a partir del CV ya verificado.
+// Sigue el orden de la plantilla: Summary, Key Skills, Experience, Education, Languages, Availability.
 export function cvToText(cv: BuiltCv): string {
   const out: string[] = [];
   out.push(cv.header.fullName.toUpperCase());
+  if (cv.headline) out.push(cv.headline);
   const contact = [cv.header.city, cv.header.phone, cv.header.email].filter(Boolean).join(' | ');
   if (contact) out.push(contact);
-  if (cv.summary) out.push('', 'SUMMARY', cv.summary);
+  if (cv.summary) out.push('', 'PROFESSIONAL SUMMARY', cv.summary);
+  if (cv.skills.length) out.push('', 'KEY SKILLS', cv.skills.join(' • '));
 
-  const exps = cv.experiences.filter((e) => e.title && (e.bullets.length > 0 || e.dates));
+  const exps = cv.experiences.filter((e) => e.heading && (e.bullets.length > 0 || e.dates));
   if (exps.length) {
     out.push('', cv.sectionTitle);
     for (const e of exps) {
-      const head = [e.title, [e.company, e.location].filter(Boolean).join(', ')].filter(Boolean).join(' — ');
-      out.push('', head);
-      if (e.dates) out.push(e.dates);
+      const head = [e.heading, e.location].filter(Boolean).join(', ');
+      out.push('', e.dates ? `${head} | ${e.dates}` : head);
+      if (e.subtitle) out.push(e.subtitle);
       for (const b of e.bullets) out.push(`• ${b.text}`);
     }
   }
-  if (cv.skills.length) out.push('', 'SKILLS', cv.skills.join(', '));
-  if (cv.education.length) out.push('', 'EDUCATION', ...cv.education);
-  if (cv.certifications.length) out.push('', 'CERTIFICATIONS', ...cv.certifications);
+  const edu = [...cv.education, ...cv.certifications];
+  if (edu.length) out.push('', 'EDUCATION & CERTIFICATIONS', ...edu);
   if (cv.languages.length) out.push('', 'LANGUAGES', cv.languages.join(' | '));
+  if (cv.availability) out.push('', 'AVAILABILITY', cv.availability);
   return out.join('\n');
 }
 

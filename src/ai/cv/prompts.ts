@@ -53,6 +53,8 @@ NIVEL REAL: para cada experiencia importante averigua el nivel con preguntas nat
 
 LÍMITES: antes de cerrar un oficio, si encaja, pregunta qué NO sabe hacer o solo observó, y guárdalo en "notDone". Eso nunca irá al CV.
 
+LOGÍSTICA: cuando ya tengas lo esencial de su experiencia, pregunta JUNTOS (en un solo mensaje) dos datos: su disponibilidad (qué temporada y qué meses, y si puede trabajar fines de semana, feriados, turnos variables y en cualquier estado de EE. UU.), que guardas en "availability" con sus palabras, y si tiene pasaporte vigente, que guardas en "passport" como "yes" o "no". NUNCA pidas ni guardes el número ni otros datos del pasaporte.
+
 NO ALARGUES: con unos 6 a 10 intercambios debería haber lo necesario. Cuando ya esté lo crítico y lo importante, ofrécele generar el CV en vez de seguir preguntando.`;
 
 const PROFILE_SCHEMA = `{
@@ -60,7 +62,8 @@ const PROFILE_SCHEMA = `{
   "targetRole": string, "industry": string, "englishLevel": string,
   "route": "A" | "B" | "C" | "",
   "experiences": [{ "id": "e1", "kind": "formal" | "informal", "autonomy": "conoce" | "ayudaba" | "realizaba" | "solo" | "avanzado" | "", "supervision": string, "title": string, "company": string, "location": string, "dates": string, "duration": string, "tasks": [string], "tools": [string], "results": [string] }],
-  "education": [string], "certifications": [string], "languages": [string], "skills": [string], "notDone": [string]
+  "education": [string], "certifications": [string], "languages": [string], "skills": [string], "notDone": [string],
+  "availability": string, "passport": "yes" | "no" | ""
 }`;
 
 const clipText = (s: string, n: number) => (s || '').slice(0, n);
@@ -184,6 +187,7 @@ Habilidades que mencionó: ${profile.skills.join(', ') || '-'}
 Educación: ${profile.education.join(' | ') || '-'}
 Certificaciones: ${profile.certifications.join(' | ') || '-'}
 Idiomas: ${profile.languages.join(' | ') || '-'}
+Disponibilidad (en sus palabras): ${profile.availability || '-'}
 NO sabe hacer o solo observó (NUNCA lo menciones ni lo insinúes): ${profile.notDone.join(' | ') || '-'}
 
 EXPERIENCIAS (cada dato tiene una referencia entre corchetes):
@@ -191,12 +195,12 @@ ${experiences}
 ${jobBlock(job, 'Úsala solo para decidir qué resaltar primero y qué palabras clave usar, NUNCA para inventar experiencia que calce con la oferta.')}
 REGLAS DE REDACCIÓN:
 - Los verbos reflejan el "nivel" de cada experiencia: "ayudaba" -> Assisted with / Supported; "realizaba" -> Performed / Completed; "solo" -> Independently performed / Handled; "avanzado" -> puedes usar Led / Trained solo si "supervisión" lo respalda. Con nivel "conoce" no lo presentes como experiencia. Sin nivel, usa el verbo más modesto. Nunca uses Managed, Led o Supervised sin supervisión indicada.
-- Cada bullet = VERBO DE ACCIÓN en pasado + TAREA + CONTEXTO (+ RESULTADO solo si el usuario lo dio). 2 a 5 bullets por experiencia.
+- Cada bullet = VERBO DE ACCIÓN en pasado + TAREA + CONTEXTO (+ RESULTADO solo si el usuario lo dio). 2 a 4 bullets por experiencia (el CV debe caber en UNA página: sé conciso).
 - Cada bullet debe citar en "refs" las referencias de los datos de los que sale. Un bullet sin referencias válidas se descarta.
 - Cada bullet dice SOLO lo que dice su dato de referencia, mejor redactado. No agregues propósito, frecuencia, contexto, estándares ni adjetivos de calidad que no estén en el dato (nada de "efficiently", "during busy shifts", "to comply with safety standards", "daily").
 - No describas rasgos de personalidad (detail-oriented, hardworking, reliable, passionate) que la persona no haya dicho de sí misma.
 - No uses números, porcentajes ni cantidades que no estén en los datos.
-- El summary tiene 3-4 líneas: quién es, qué sabe hacer, qué experiencia tiene y qué puesto busca. Específico, sin frases genéricas ("passionate", "dream job"). Sin cifras que no estén en los datos.
+- El summary tiene 2-3 líneas: quién es, qué sabe hacer, qué experiencia tiene y qué puesto busca. Específico, sin frases genéricas ("passionate", "dream job"). Sin cifras que no estén en los datos.
 - "title_en" y "dates_en" son la traducción fiel del cargo y de las fechas del usuario; no cambies su nivel ni sus fechas.
 - skills: hasta 10, solo habilidades que nombren una herramienta o tarea que aparece literalmente en los datos, o que la persona haya mencionado (nada de "Workplace Safety" o "Time Management" si no lo dijo). Mejor pocas y reales. education/certifications: traduce lo que dio, sin agregar.
 - Inglés profesional pero simple, acorde a su nivel.
@@ -205,6 +209,8 @@ Responde ÚNICAMENTE con un objeto JSON con estas claves:
 - "diagnostico_es": 2-3 líneas en español sobre qué tiene la persona y cómo se ve para el puesto (sin suponer su género).
 - "estrategia_es": 1-2 líneas en español sobre qué se destacó y por qué.
 - "summary": string en inglés.
+- "headline_en": el puesto objetivo en inglés, de 2 a 5 palabras y solo el puesto (ej. "Landscape Laborer"), sin cifras.
+- "availability_en": traducción fiel y breve al inglés de su disponibilidad (los datos de arriba), sin agregar nada que no haya dicho; "" si no la dio.
 - "experiences": array con un objeto por experiencia: { "id": "e1", "title_en": string, "dates_en": string, "bullets": [{ "text": string, "refs": ["e1.t1"] }] }
 - "skills": array de strings en inglés.
 - "education": array de strings en inglés. "certifications": array de strings en inglés.

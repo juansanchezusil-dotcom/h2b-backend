@@ -34,6 +34,10 @@ export interface CandidateProfile {
   skills: string[];
   // Lo que NO sabe hacer o solo observó. Nunca va al CV; sirve para no exagerar.
   notDone: string[];
+  // Disponibilidad en sus propias palabras (temporada, meses, flexibilidad) y si tiene pasaporte vigente.
+  // El pasaporte es solo sí/no: nunca se pide ni se guarda el número.
+  availability: string;
+  passport: '' | 'yes' | 'no';
 }
 
 export type GapLevel = 'critical' | 'important';

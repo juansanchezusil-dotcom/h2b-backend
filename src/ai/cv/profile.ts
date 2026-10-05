@@ -25,6 +25,7 @@ export function emptyProfile(): CandidateProfile {
   return {
     fullName: '', city: '', phone: '', email: '', targetRole: '', industry: '', englishLevel: '',
     route: '', experiences: [], education: [], certifications: [], languages: [], skills: [], notDone: [],
+    availability: '', passport: '',
   };
 }
 
@@ -58,6 +59,8 @@ export function sanitizeProfile(raw: any): CandidateProfile {
   p.languages = list(raw.languages);
   p.skills = list(raw.skills, 20);
   p.notDone = list(raw.notDone);
+  p.availability = clip(raw.availability, 250);
+  p.passport = raw.passport === 'yes' || raw.passport === 'no' ? raw.passport : '';
   const exps = Array.isArray(raw.experiences) ? raw.experiences.slice(0, 8) : [];
   p.experiences = exps.map((e: any, i: number) => cleanExperience(e, `e${i + 1}`));
   return p;
@@ -76,6 +79,8 @@ export function mergeProfile(base: CandidateProfile, rawUpdates: any): Candidate
   out.languages = union(out.languages, up.languages);
   out.skills = union(out.skills, up.skills, 20);
   out.notDone = union(out.notDone, up.notDone);
+  if (up.availability) out.availability = up.availability;
+  if (up.passport) out.passport = up.passport;
 
   const rawExps = Array.isArray(rawUpdates?.experiences) ? rawUpdates.experiences.slice(0, 8) : [];
   rawExps.forEach((rawExp: any) => {
@@ -121,6 +126,8 @@ export function computeGaps(p: CandidateProfile): Gap[] {
   if (p.experiences.some((e) => e.tasks.length > 0 && !e.autonomy)) {
     gaps.push({ key: 'autonomy', level: 'important', label: 'Qué tan independiente eras en esas tareas' });
   }
+  if (!p.availability) gaps.push({ key: 'availability', level: 'important', label: 'Tu disponibilidad (temporada y meses)' });
+  if (!p.passport) gaps.push({ key: 'passport', level: 'important', label: 'Si tienes pasaporte vigente (sí o no)' });
   return gaps;
 }
 
