@@ -49,6 +49,7 @@ export interface Miembro {
   fuenteVisita: 'app' | 'login' | null;
   postulaciones30: number;
   diasParaVencer: number | null;
+  venceEl: string | null; // fecha exacta de vencimiento (identifica 'el mismo aviso' en los correos)
   origen: string | null;
   sinArrancar: boolean;
   estancado: boolean;
@@ -202,6 +203,7 @@ export function computeRadar(input: RadarInput): { resumen: Resumen; miembros: M
       fuenteVisita,
       postulaciones30,
       diasParaVencer,
+      venceEl: a.vence_el,
       origen: a.origen,
       sinArrancar,
       estancado,

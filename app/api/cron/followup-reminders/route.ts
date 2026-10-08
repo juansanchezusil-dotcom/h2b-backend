@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
+import { runEngagement } from '../../../../src/email/engagement';
 
 export async function GET(request: Request) {
   const authHeader = request.headers.get('authorization');
@@ -220,11 +221,22 @@ export async function GET(request: Request) {
     promoted7++;
   }
 
+  // Correos de renovación y reenganche. Vienen apagados (ENGAGEMENT_EMAILS) y un fallo aquí nunca debe
+  // afectar a los recordatorios de arriba, que ya se procesaron.
+  let engagement: unknown = null;
+  try {
+    engagement = await runEngagement({ supabase, resend, now: Date.now(), includeDigest: true });
+  } catch (err) {
+    console.error('Error en los correos de renovación y reenganche:', err);
+    engagement = { error: 'falló, ver los registros' };
+  }
+
   return NextResponse.json({
     message: 'Recordatorios procesados',
     promoted7,
     reminders14,
     closed21,
     failures,
+    engagement,
   });
 }
