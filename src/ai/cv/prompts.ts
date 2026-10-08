@@ -89,9 +89,11 @@ export function buildInterviewPrompt(opts: {
   pastedCv: string;
   hasDocument: boolean;
   isFirstTurn: boolean;
+  // true cuando adjunta un archivo en medio de la conversación (no al empezar)
+  midChatAttachment?: boolean;
   job?: JobInput | null;
 }): string {
-  const { profile, gaps, turns, pastedCv, hasDocument, isFirstTurn, job = null } = opts;
+  const { profile, gaps, turns, pastedCv, hasDocument, isFirstTurn, midChatAttachment = false, job = null } = opts;
   const gapList = gaps.length ? gaps.map((g) => `- [${g.level}] ${g.key}: ${g.label}`).join('\n') : '(ninguno: ya hay lo mínimo para generar el CV)';
   const history = turns.length
     ? turns.map((t) => `${t.role === 'user' ? 'USUARIO' : 'ASISTENTE'}: ${clipText(t.text, 1500)}`).join('\n')
@@ -104,7 +106,9 @@ export function buildInterviewPrompt(opts: {
     : '';
 
   const mode =
-    pastedCv || hasDocument
+    (pastedCv || hasDocument) && midChatAttachment
+      ? `ARCHIVO ADJUNTO EN LA CONVERSACIÓN: la persona adjuntó un archivo (puede ser su CV, certificados, notas o una foto de un documento). Extrae hacia el perfil (profile_updates) TODO lo útil que diga, sin inventar nada y sin repetir lo que ya está en el perfil. En reply_es di en 1-2 líneas qué tomaste del archivo y haz la siguiente pregunta sobre lo más importante que siga faltando. Si el archivo no trae información útil para el CV, dilo con amabilidad y sigue con la entrevista.`
+      : pastedCv || hasDocument
       ? `MODO CV EXISTENTE: lee el CV adjunto y extrae TODO lo que diga hacia el perfil (profile_updates), sin inventar nada. No lo reemplaces ni lo reescribas. Luego, en reply_es, resume en 2-3 líneas lo que entendiste (fortalezas y qué le falta) y haz UNA pregunta sobre lo más importante que falte.`
       : isFirstTurn
       ? `PRIMER TURNO: saluda breve y cálido (1 línea) y haz la primera pregunta sobre su experiencia para el puesto objetivo. No pidas todo de golpe.`

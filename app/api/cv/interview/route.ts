@@ -50,7 +50,7 @@ export async function POST(request: Request) {
     if (doc) {
       const data = typeof doc.base64 === 'string' ? doc.base64.replace(/^data:[^;]+;base64,/, '') : '';
       if (!DOC_TYPES.includes(doc.mediaType) || !data) {
-        return NextResponse.json({ error: 'Sube tu CV como PDF o como foto (JPG, PNG o WebP).' }, { status: 400, headers });
+        return NextResponse.json({ error: 'Sube tu archivo como PDF o como foto (JPG, PNG o WebP). Los de Word se leen en tu navegador.' }, { status: 400, headers });
       }
       if (data.length > MAX_DOC_BASE64) {
         return NextResponse.json({ error: 'El archivo pesa más de 3 MB. Sube uno más liviano.' }, { status: 413, headers });
@@ -72,6 +72,7 @@ export async function POST(request: Request) {
       pastedCv,
       hasDocument: !!documentPart,
       isFirstTurn: turns.length === 0 && !pastedCv && !documentPart,
+      midChatAttachment: turns.length > 0 && (!!pastedCv || !!documentPart),
       job,
     });
 
