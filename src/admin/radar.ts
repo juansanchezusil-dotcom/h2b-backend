@@ -10,7 +10,7 @@ export const RADAR = {
   stalledDays: 14, // con postulaciones pero sin movimientos en este tiempo: "estancado"
   soonDays: 7, // vence en menos de este tiempo: "por vencer"
   commitmentDays: 30, // el Compromiso de PRO se evalúa a los 30 días
-  goal: 10, // postulaciones (a empresas distintas) para "aplicó el sistema"
+  goal: 40, // piso del Compromiso de PRO: postulaciones a empresas distintas en 30 días (mismo número en el frontend: lib/goals.ts)
   // Candidato al Accelerator: cuello de botella real en la búsqueda
   accelStalledDays: 20, // 20 o más días sin avanzar
   noResponseMin: 3, // postulaciones que ya vencieron sin respuesta, con 0 respuestas en total
