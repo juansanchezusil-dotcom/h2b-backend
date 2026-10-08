@@ -125,6 +125,7 @@ export function renderEmail(kind: EmailKind, d: TemplateData): RenderedEmail {
   <p style="margin:16px 8px 0;font-size:11px;line-height:1.5;color:#64748b">
     Recibes este correo porque eres miembro de Juan Te Avisa PRO. Puedes responderlo: me llega a mí.
     Si prefieres no recibir estos avisos, <a href="${escapeHtml(d.unsubscribeUrl)}" style="color:#64748b">date de baja aquí</a>.
+    <a href="${escapeHtml(d.appUrl)}/privacidad" style="color:#64748b">Política de privacidad</a>.
   </p>
 </div></body></html>`;
 
