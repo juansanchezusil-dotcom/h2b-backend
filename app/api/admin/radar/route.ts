@@ -4,8 +4,8 @@ import { computeRadar, RADAR, type RadarInput } from '../../../../src/admin/rada
 
 export const dynamic = 'force-dynamic';
 
-// Radar de actividad de los miembros: quién está activo, quién se enfría, quién está por vencer y
-// quién cumple el Compromiso de PRO. Solo para administradores.
+// Radar de actividad de los miembros: quién está activo, quién se enfría, quién está por vencer,
+// quién cumple el Compromiso de PRO y a quién conviene escribirle. Solo para administradores.
 export async function GET(request: Request) {
   const denied = await requireAdmin(request);
   if (denied) return denied;
@@ -16,9 +16,9 @@ export async function GET(request: Request) {
     const since = new Date(now - RADAR.commitmentDays * 24 * 60 * 60 * 1000).toISOString();
 
     const [accesosRes, profilesRes, appsRes, eventsRes] = await Promise.all([
-      supabase.from('accesos').select('email, vence_el, origen, created_at').eq('activo', true),
+      supabase.from('accesos').select('email, vence_el, origen, created_at, contactado_el, nota_admin').eq('activo', true),
       supabase.from('profiles').select('id, full_name, last_seen_at, perfil_completado, base_cv_text'),
-      supabase.from('applications').select('user_id, status').neq('status', 'guardadas'),
+      supabase.from('applications').select('user_id, status').limit(20000),
       supabase
         .from('application_events')
         .select('user_id, company_name, from_status, to_status, created_at')
@@ -50,16 +50,19 @@ export async function GET(request: Request) {
       });
     }
 
-    const appliedByUser: RadarInput['appliedByUser'] = new Map();
+    const statusCounts: RadarInput['statusCounts'] = new Map();
     for (const a of appsRes.data || []) {
-      if (a.user_id) appliedByUser.set(a.user_id, (appliedByUser.get(a.user_id) || 0) + 1);
+      if (!a.user_id) continue;
+      const counts = statusCounts.get(a.user_id) || {};
+      counts[a.status] = (counts[a.status] || 0) + 1;
+      statusCounts.set(a.user_id, counts);
     }
 
     const { resumen, miembros } = computeRadar({
       accesos: accesosRes.data || [],
       users,
       profiles,
-      appliedByUser,
+      statusCounts,
       events: eventsRes.data || [],
       now,
     });
