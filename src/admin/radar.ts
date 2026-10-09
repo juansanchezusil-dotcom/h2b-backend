@@ -34,7 +34,7 @@ export interface RadarInput {
   // por correo en minúsculas
   users: Map<string, { id: string; last_sign_in_at: string | null }>;
   // por id de usuario
-  profiles: Map<string, { full_name: string | null; last_seen_at: string | null; perfil_completado: boolean | null; hasCv: boolean }>;
+  profiles: Map<string, { full_name: string | null; last_seen_at: string | null; perfil_completado: boolean | null; hasCv: boolean; passport?: boolean; ds160?: boolean }>;
   // cuántas postulaciones tiene la persona en cada estado ("guardadas", "postulado", "entrevista"...)
   statusCounts: Map<string, Record<string, number>>;
   events: { user_id: string; company_name: string; from_status: string | null; to_status: string; created_at: string }[];
@@ -49,6 +49,7 @@ export interface Miembro {
   fuenteVisita: 'app' | 'login' | null;
   postulaciones30: number;
   diasParaVencer: number | null;
+  pasos: { passport: boolean; ds160: boolean }; // pasos manuales del Mapa
   venceEl: string | null; // fecha exacta de vencimiento (identifica 'el mismo aviso' en los correos)
   origen: string | null;
   sinArrancar: boolean;
@@ -203,6 +204,7 @@ export function computeRadar(input: RadarInput): { resumen: Resumen; miembros: M
       fuenteVisita,
       postulaciones30,
       diasParaVencer,
+      pasos: { passport: !!profile?.passport, ds160: !!profile?.ds160 },
       venceEl: a.vence_el,
       origen: a.origen,
       sinArrancar,

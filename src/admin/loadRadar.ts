@@ -8,7 +8,7 @@ export async function loadRadarInput(supabase: SupabaseClient, now: number): Pro
 
   const [accesosRes, profilesRes, appsRes, eventsRes] = await Promise.all([
     supabase.from('accesos').select('email, vence_el, origen, created_at, contactado_el, nota_admin').eq('activo', true),
-    supabase.from('profiles').select('id, full_name, last_seen_at, perfil_completado, base_cv_text'),
+    supabase.from('profiles').select('id, full_name, last_seen_at, perfil_completado, base_cv_text, manual_steps'),
     supabase.from('applications').select('user_id, status').limit(20000),
     supabase
       .from('application_events')
@@ -38,6 +38,8 @@ export async function loadRadarInput(supabase: SupabaseClient, now: number): Pro
       last_seen_at: p.last_seen_at,
       perfil_completado: p.perfil_completado,
       hasCv: (p.base_cv_text || '').trim().length >= 30,
+      passport: !!p.manual_steps?.passport,
+      ds160: !!p.manual_steps?.ds160,
     });
   }
 
