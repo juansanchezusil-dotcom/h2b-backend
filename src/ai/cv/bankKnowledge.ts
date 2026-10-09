@@ -126,7 +126,7 @@ export const KNOWLEDGE: Record<string, BankKnowledge> = {
       C: 'reparaciones en su hogar o con familiares',
     },
     redFlags: [
-      '"arreglo todo" sin ejemplos',
+      '"arreglo todo" o "soy handyman" sin ejemplos',
       'dice electricidad o plomería sin precisar qué hace',
       'no distingue lo que hace solo de lo que solo ayuda',
       'menciona herramientas de diagnóstico sin explicar su uso',
@@ -138,7 +138,7 @@ export const KNOWLEDGE: Record<string, BankKnowledge> = {
       'instalaciones básicas',
     ],
     evidence: [
-      'un problema que diagnosticó y reparó, con los pasos',
+      'una reparación concreta: cuál era el problema, cómo descubrió la causa, qué herramientas usó, qué hizo, si quedó funcionando y si la hizo solo o con ayuda',
       'qué reparaciones hace completamente solo',
       'cuáles no sabe hacer',
       'mantenimiento preventivo que haya hecho',
@@ -230,7 +230,7 @@ export const KNOWLEDGE: Record<string, BankKnowledge> = {
       'no confirma voltajes ni equipos',
     ],
     transferable: ['ayudante de electricista', 'mantenimiento con electricidad básica', 'instalaciones del hogar', 'mecánica o electrónica informal'],
-    evidence: ['una instalación o falla concreta y los pasos', 'qué medía con un multímetro', 'cómo cortaba la corriente antes de trabajar'],
+    evidence: ['una instalación o falla concreta: el problema, cómo halló la causa, qué herramientas usó, qué hizo y si quedó funcionando', 'si lo hizo solo o ayudando a otra persona', 'qué medía con un multímetro', 'cómo cortaba la corriente antes de trabajar'],
     keywords: ['electrical installation', 'wiring', 'circuit breakers', 'conduit', 'troubleshooting', 'multimeter', 'lockout/tagout', 'electrician helper'],
   },
   carpenter: {

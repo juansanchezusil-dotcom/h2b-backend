@@ -51,6 +51,16 @@ const INTERVIEW_TREE = `ÁRBOL DE DECISIÓN (aplícalo en silencio):
    Si encuentra algo real -> ruta C. Si tras recorrer las áreas no aparece nada relevante, no fuerces la ruta C: registra lo que haya, díselo con ánimo y sin inventar.
 5. Sigue el hilo: si una respuesta abre una línea (una herramienta, una tarea, un lugar), profundízala antes de cambiar de tema.
 
+CONEXIONES POSIBLES (son pistas de qué PREGUNTAR, nunca equivalencias automáticas: investiga primero qué hacía de verdad la persona):
+- Agricultura o finca -> landscaping, mantenimiento de terrenos
+- Construcción <-> mantenimiento
+- Restaurante o negocio familiar de comida -> cocina
+- Limpiar casas de otras personas -> housekeeping
+- Mantenimiento de propiedades -> mantenimiento o landscaping
+- Bodega o trabajo manual en general -> construcción o trabajo físico
+- Remodelaciones -> construcción o mantenimiento
+Una conexión solo cuenta si la persona describe tareas concretas, herramientas y nivel.
+
 CÓMO PROFUNDIZAR:
 - Menciona una herramienta o máquina -> pregunta si la usaba ella misma o solo ayudaba, y por cuánto tiempo. Nunca asumas experiencia solo porque conoce el nombre. Guarda la herramienta con su tiempo de uso si lo dio (ej. "guadaña, 4 años").
 - Dice "ayudaba con X" -> pregunta qué tareas específicas hacía. No lo conviertas en el oficio.
@@ -111,7 +121,7 @@ export function buildInterviewPrompt(opts: {
       : pastedCv || hasDocument
       ? `MODO CV EXISTENTE: lee el CV adjunto y extrae TODO lo que diga hacia el perfil (profile_updates), sin inventar nada. No lo reemplaces ni lo reescribas. Luego, en reply_es, resume en 2-3 líneas lo que entendiste (fortalezas y qué le falta) y haz UNA pregunta sobre lo más importante que falte.`
       : isFirstTurn
-      ? `PRIMER TURNO: saluda breve y cálido (1 línea) y haz la primera pregunta sobre su experiencia para el puesto objetivo. No pidas todo de golpe.`
+      ? `PRIMER TURNO: saluda breve y cálido (1 línea) y haz la primera pregunta sobre su experiencia para el puesto objetivo. No pidas todo de golpe. Añade una línea corta: si tiene un CV, certificados o notas, puede adjuntarlos con el clip (PDF, foto o Word) y así le preguntas menos.`
       : `Aplica el último mensaje del usuario al perfil (profile_updates) y haz la siguiente pregunta.`;
 
   return `${MASTER_RULES}
@@ -124,6 +134,7 @@ ${INTERVIEW_TREE}
 ${renderBankPrompt(profile.targetRole, profile.industry)}
 ${jobBlock(job, 'Esta persona quiere adaptar su CV a esta oferta. Extrae EN SILENCIO de 5 a 8 requisitos concretos (tareas, herramientas, equipos, idioma, exigencias físicas, certificaciones). Prioriza tus preguntas sobre los requisitos que todavía no tengan respaldo en el perfil. Para cada uno que la persona no haya mencionado, pregunta de forma abierta si ha hecho algo parecido; NUNCA induzcas la respuesta ni digas "la oferta pide X, ¿verdad que sabes X?". No preguntes por cosas que la oferta no pide. Si no cumple algo que la oferta pide, acéptalo con naturalidad: no lo inventes ni lo suavices.')}
 REGLAS DE LA ENTREVISTA:
+- Si la persona tiene mucha información, le cuesta escribirla o dice que se le olvidó subir su CV, sugiérele adjuntar su CV, certificados o notas con el clip (PDF, foto o Word). Un archivo vale más que muchas preguntas; después solo preguntas lo que falte.
 - Haz UNA pregunta por turno (máximo dos si están muy ligadas). Nunca 20 de golpe. Mensajes cortos.
 - Elige la siguiente pregunta de la lista de datos que faltan, empezando por los "critical". No preguntes algo que el último mensaje del usuario acaba de responder.
 - Si una respuesta abre una línea nueva, profundiza antes de seguir (ej. dice "construcción": pregunta qué trabajos hacía y qué herramientas usaba).
