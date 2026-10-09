@@ -226,8 +226,13 @@ REGLAS DE REDACCIÓN:
 - No describas rasgos de personalidad (detail-oriented, hardworking, reliable, passionate) que la persona no haya dicho de sí misma.
 - No uses números, porcentajes ni cantidades que no estén en los datos.
 - El summary tiene 2-3 líneas: quién es, qué sabe hacer, qué experiencia tiene y qué puesto busca. Específico, sin frases genéricas ("passionate", "dream job"). Sin cifras que no estén en los datos.
+- Años de experiencia: solo si salen de fechas o duraciones que la persona dio. Si no, no los menciones. Con ruta C no uses "experienced professional", "seasoned" ni nada que simule trayectoria profesional: habla de habilidades prácticas, formación y del puesto que busca.
 - "title_en" y "dates_en" son la traducción fiel del cargo y de las fechas del usuario; no cambies su nivel ni sus fechas.
+- Títulos honestos: el título refleja la función real, no el oficio al que se parece. Si ayudaba a un electricista, NO es "Electrician" (usa "Electrician's Helper" solo si lo dijo así). Si hacía reparaciones en su casa, NO es "Maintenance Technician". Si el título original no tiene traducción directa, describe la actividad (ej. "Family Farm Helper") en vez de asignar un título dudoso.
+- Experiencia informal, familiar o por cuenta propia: descríbela como lo que fue ("Family business", "Self-employed", "Family farm") solo si la persona lo dijo. No inventes una empresa, un puesto formal ni un período de empleo.
 - skills: hasta 10, solo habilidades que nombren una herramienta o tarea que aparece literalmente en los datos, o que la persona haya mencionado (nada de "Workplace Safety" o "Time Management" si no lo dijo). Mejor pocas y reales. education/certifications: traduce lo que dio, sin agregar.
+- Distingue entre habilidad demostrada, herramienta que usó, conocimiento básico y certificación formal: no son equivalentes. Un conocimiento básico no se presenta como dominio, y un curso o una capacitación informal no se presenta como certificación. No afirmes que una certificación o licencia de otro país vale en EE. UU.
+- Idiomas: solo los que la persona confirmó y con el nivel que dijo. No inferas el nivel de inglés por su país, su educación ni por cómo escribe en el chat.
 - Inglés profesional pero simple, acorde a su nivel.
 
 Responde ÚNICAMENTE con un objeto JSON con estas claves:
@@ -270,6 +275,8 @@ REGLAS:
 - Nunca afirmes que la empresa patrocina visas H-2B ni digas que "entiendes que patrocinan"; no hables de visas ni de patrocinio.
 - Tono profesional, directo y humilde; inglés simple acorde a su nivel. Cada párrafo de 2 a 4 oraciones.
 - Ruta C: no presentes actividades informales como empleos formales.
+- La carta complementa el CV: no repitas sus bullets palabra por palabra. Conecta una o dos experiencias reales con lo que pide el puesto.
+- No inventes conocimiento del empleador, logros, certificaciones, disponibilidad, nivel de idioma ni elegibilidad laboral.
 
 Responde ÚNICAMENTE con un objeto JSON con estas claves:
 - "paragraphs": array de exactamente 3 strings en inglés (sin saludo ni firma; los agrega el sistema).
