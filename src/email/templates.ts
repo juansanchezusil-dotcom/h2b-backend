@@ -2,7 +2,7 @@
 // tuteo, directos. Reglas que no se rompen: no se promete visa, patrocinio, entrevista ni empleo; no hay
 // urgencia inventada (las fechas son las reales); y siempre se puede responder o darse de baja.
 
-export type EmailKind = 'renewal_7' | 'renewal_3' | 'renewal_after' | 'reengage';
+export type EmailKind = 'renewal_7' | 'renewal_3' | 'renewal_after' | 'reengage' | 'reto_30';
 
 export interface TemplateData {
   nombre: string | null;
@@ -15,6 +15,9 @@ export interface TemplateData {
   renewUrl?: string; // si aún no hay enlace de renovación, se pide responder el correo
   appUrl: string;
   unsubscribeUrl: string;
+  // Reto de 30 días: si llegó a la meta (perfil, CV y postulaciones) y, si no, qué le falta
+  retoCumplido?: boolean;
+  retoFaltan?: string[];
 }
 
 export interface RenderedEmail {
@@ -60,6 +63,31 @@ function body(kind: EmailKind, d: TemplateData): Body {
         ],
         button: { label: 'Entrar a mi Centro de Control', url: d.appUrl },
       };
+
+    case 'reto_30': {
+      if (d.retoCumplido) {
+        return {
+          subject: 'Llegaste a la meta de tus primeros 30 días',
+          paragraphs: [
+            hola,
+            `Se cumplieron tus primeros 30 días en Juan Te Avisa PRO y llegaste a la meta: perfil, CV y ${plural(d.postulaciones30, 'postulación', 'postulaciones')} a empresas distintas. Esto lo hiciste tú.`,
+            'Lo que sigue es el seguimiento: escribir a las empresas que no respondieron a los 7, 14 y 21 días, y seguir postulando con el mismo ritmo.',
+            'Si quieres contarme cómo te va o qué te cuesta, respóndeme este correo.',
+          ],
+          button: { label: 'Seguir en mi Centro de Control', url: d.appUrl },
+        };
+      }
+      const falta = (d.retoFaltan || []).filter(Boolean);
+      return {
+        subject: 'Tus primeros 30 días: ¿cómo te fue?',
+        paragraphs: [
+          hola,
+          `Se cumplieron tus primeros 30 días en Juan Te Avisa PRO. Llevas ${plural(d.postulaciones30, 'postulación', 'postulaciones')} a empresas distintas, de ${d.meta} que propone el reto${falta.length ? `. Te falta: ${falta.join(', ')}` : ''}.`,
+          'No pasa nada. Casi siempre hay una razón concreta: no encontrar ofertas, el miedo al inglés o dudar de si una oferta es real. Cuéntame cuál es la tuya respondiendo este correo y lo vemos juntos.',
+        ],
+        button: { label: 'Entrar a mi Centro de Control', url: d.appUrl },
+      };
+    }
 
     case 'renewal_7':
       return {

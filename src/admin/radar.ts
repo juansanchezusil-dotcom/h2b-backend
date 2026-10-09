@@ -50,6 +50,7 @@ export interface Miembro {
   postulaciones30: number;
   diasParaVencer: number | null;
   pasos: { passport: boolean; ds160: boolean }; // pasos manuales del Mapa
+  diasDesdeAlta: number | null; // días reales desde que se dio el acceso (el Reto usa 30)
   venceEl: string | null; // fecha exacta de vencimiento (identifica 'el mismo aviso' en los correos)
   origen: string | null;
   sinArrancar: boolean;
@@ -205,6 +206,7 @@ export function computeRadar(input: RadarInput): { resumen: Resumen; miembros: M
       postulaciones30,
       diasParaVencer,
       pasos: { passport: !!profile?.passport, ds160: !!profile?.ds160 },
+      diasDesdeAlta,
       venceEl: a.vence_el,
       origen: a.origen,
       sinArrancar,

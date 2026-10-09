@@ -17,6 +17,8 @@ export const ENGAGEMENT = {
   renewal7: [4, 7] as const, // ventana de días para vencer del primer aviso de renovación
   renewal3: [1, 3] as const,
   renewalAfter: [-5, -1] as const, // días después de vencer
+  retoWindow: [30, 40] as const, // días desde el alta para el correo del Reto de 30 días
+  skipIfContactedRetoDays: 3,
   perRunCap: 50,
   testCap: 5,
 };
@@ -92,6 +94,8 @@ export function planEmails(input: PlanInput): PlannedEmail[] {
       renewUrl: input.renewUrl,
       appUrl: input.appUrl,
       unsubscribeUrl: unsubscribeUrl(userId),
+      retoCumplido: m.compromiso.califica === true,
+      retoFaltan: m.compromiso.faltan,
     };
 
     // 1) Renovación: solo si hay fecha de vencimiento, y no si Juan ya habló con la persona hace poco
@@ -108,7 +112,20 @@ export function planEmails(input: PlanInput): PlannedEmail[] {
       }
     }
 
-    // 2) Reenganche: quien lleva días sin entrar, con tope para no insistir
+    // 2) Reto de 30 días: una sola vez por persona, al cumplirse los 30 días (felicita o ofrece ayuda)
+    const alta = m.diasDesdeAlta;
+    if (
+      alta !== null &&
+      alta >= ENGAGEMENT.retoWindow[0] &&
+      alta <= ENGAGEMENT.retoWindow[1] &&
+      contactedDays >= ENGAGEMENT.skipIfContactedRetoDays &&
+      !sent('reto_30', 'reto')
+    ) {
+      planned.push({ userId, email: m.email, kind: 'reto_30', dedupeKey: 'reto', data });
+      continue;
+    }
+
+    // 3) Reenganche: quien lleva días sin entrar, con tope para no insistir
     const expired = d !== null && d < 0;
     if (
       !expired &&
@@ -314,6 +331,8 @@ export async function sendSampleEmails(resend: Resend, to: string): Promise<{ se
     { kind: 'renewal_7', data: { ...base, postulaciones30: 1, seguimientos: 0 }, label: 'Renovación 7 días (poco avance)' },
     { kind: 'renewal_3', data: { ...base, diasParaVencer: 3 }, label: 'Renovación 3 días' },
     { kind: 'renewal_after', data: { ...base, diasParaVencer: -2 }, label: 'Después de vencer' },
+    { kind: 'reto_30', data: { ...base, postulaciones30: 42, retoCumplido: true, retoFaltan: [] }, label: 'Reto de 30 días (cumplido)' },
+    { kind: 'reto_30', data: { ...base, postulaciones30: 18, retoCumplido: false, retoFaltan: ['postulaciones (18 de 40)'] }, label: 'Reto de 30 días (con ayuda)' },
   ];
   const failed: string[] = [];
   let sent = 0;
