@@ -54,6 +54,8 @@ export async function POST(request: Request) {
     stage: clip(body.stage, 20) || null,
     answers,
     updated_at: new Date().toISOString(),
+    // Si vuelve a dejar su correo aceptando, el consentimiento se renueva
+    unsubscribed_at: null,
   };
   const existing = await supabase.from('map_leads').select('id').eq('email', email).maybeSingle();
   const { error } = existing.data

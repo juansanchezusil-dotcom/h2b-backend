@@ -34,3 +34,24 @@ export function readUnsubscribeToken(token: string | null | undefined): string |
 }
 
 export const unsubscribeUrl = (userId: string) => `${BACKEND_URL}/api/avisos?t=${encodeURIComponent(makeUnsubscribeToken(userId))}`;
+
+// Contactos del Mapa público (no tienen cuenta): el identificador lleva el prefijo "l-" para distinguirlos.
+export const makeLeadUnsubscribeToken = (leadId: string) => `l-${leadId}.${sign(`l-${leadId}`)}`;
+
+export const leadUnsubscribeUrl = (leadId: string) => `${BACKEND_URL}/api/avisos?t=${encodeURIComponent(makeLeadUnsubscribeToken(leadId))}`;
+
+// Lee cualquiera de los dos tipos de enlace: de un miembro (id de usuario) o de un contacto del Mapa.
+export function readUnsubscribeSubject(token: string | null | undefined): { kind: 'user' | 'lead'; id: string } | null {
+  if (!token) return null;
+  const dot = token.lastIndexOf('.');
+  if (dot <= 0) return null;
+  const subject = token.slice(0, dot);
+  const given = Buffer.from(token.slice(dot + 1));
+  const expected = Buffer.from(sign(subject));
+  if (given.length !== expected.length || !timingSafeEqual(given, expected)) return null;
+  if (subject.startsWith('l-')) {
+    const id = subject.slice(2);
+    return /^[0-9a-f-]{36}$/i.test(id) ? { kind: 'lead', id } : null;
+  }
+  return /^[0-9a-f-]{36}$/i.test(subject) ? { kind: 'user', id: subject } : null;
+}

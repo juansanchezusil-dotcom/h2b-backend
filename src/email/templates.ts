@@ -191,3 +191,33 @@ ${lines.length ? `<ul style="font-size:14px;line-height:1.6;padding-left:18px">$
   const text = [resumen, ...lines, `Abrir el radar: ${panelUrl}`].join('\n');
   return { subject, html, text };
 }
+
+// Recordatorio para quienes dejaron su correo en el Mapa público (consintieron que se les escriba sobre la
+// masterclass). Sin urgencia inventada: la fecha es la real.
+export function renderMapaReminder(d: { nombre: string | null; masterclassUrl: string; unsubscribeUrl: string }): RenderedEmail {
+  const hola = firstName(d.nombre) ? `Hola ${firstName(d.nombre)}, soy Juan.` : 'Hola, soy Juan.';
+  const subject = 'Tu Mapa H2B se activa el 25 de noviembre';
+  const paragraphs = [
+    hola,
+    'Dejaste tu correo en el Mapa H2B. Te cuento lo que sigue: el 25 de noviembre lo trabajamos juntos, en vivo, en la masterclass. Ahí armas tu plan de 3 semanas y tu dashboard para guardar ofertas, empresas y agencias.',
+    'Si quieres asistir, reserva tu lugar aquí. Y si tienes una duda, respóndeme este correo.',
+  ];
+  const body = paragraphs.map((p) => `<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#1e293b">${escapeHtml(p)}</p>`).join('');
+  const html = `<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(subject)}</title></head>
+<body style="margin:0;background:#f1f5f9;font-family:Arial,Helvetica,sans-serif">
+<div style="max-width:560px;margin:0 auto;padding:24px 16px">
+  <div style="background:${NAVY};border-radius:12px 12px 0 0;padding:18px 24px"><span style="color:${GOLD};font-weight:700;font-size:14px;letter-spacing:0.22em">JUAN TE AVISA</span></div>
+  <div style="background:#ffffff;padding:28px 24px;border-radius:0 0 12px 12px">
+    ${body}
+    <p style="margin:24px 0"><a href="${escapeHtml(d.masterclassUrl)}" style="display:inline-block;background:${GOLD};color:${NAVY};font-weight:700;font-size:14px;text-decoration:none;padding:12px 22px;border-radius:10px">Reservar mi lugar</a></p>
+    <p style="margin:0;font-size:15px;color:#1e293b">— Juan</p>
+  </div>
+  <p style="margin:16px 8px 0;font-size:11px;line-height:1.5;color:#64748b">
+    Recibes este correo porque dejaste tu correo en el Mapa H2B de Juan Te Avisa y aceptaste que te escribamos. Puedes responderlo: me llega a mí.
+    Si prefieres no recibir más mensajes, <a href="${escapeHtml(d.unsubscribeUrl)}" style="color:#64748b">date de baja aquí</a>.
+  </p>
+</div></body></html>`;
+  const text = [...paragraphs, `Reservar mi lugar: ${d.masterclassUrl}`, '— Juan', '', `Recibes este correo porque dejaste tu correo en el Mapa H2B de Juan Te Avisa y aceptaste que te escribamos. Para no recibir más mensajes: ${d.unsubscribeUrl}`].join('\n\n');
+  return { subject, html, text };
+}

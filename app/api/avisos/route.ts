@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { adminClient } from '../../../src/admin/auth';
-import { readUnsubscribeToken } from '../../../src/email/unsubscribe';
+import { readUnsubscribeSubject } from '../../../src/email/unsubscribe';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,8 +29,17 @@ const button = (label: string, accion: 'baja' | 'alta', primary: boolean) =>
 
 export async function GET(request: Request) {
   const token = new URL(request.url).searchParams.get('t');
-  if (!readUnsubscribeToken(token)) {
+  const subject = readUnsubscribeSubject(token);
+  if (!subject) {
     return page('Enlace no válido', '<h1 style="margin:0 0 8px;font-size:20px">Este enlace no es válido</h1><p style="font-size:14px">Usa el enlace del correo más reciente que te enviamos.</p>', 400);
+  }
+  if (subject.kind === 'lead') {
+    return page(
+      'Avisos por correo',
+      `<h1 style="margin:0 0 8px;font-size:20px">Avisos por correo</h1>
+       <p style="font-size:14px;line-height:1.6">Dejaste tu correo en el Mapa H2B y te escribimos sobre tu mapa y la masterclass. Si prefieres no recibir más mensajes, pulsa el botón.</p>
+       <form method="post" style="margin-top:20px">${button('Dejar de recibir mensajes', 'baja', true)}</form>`
+    );
   }
   return page(
     'Avisos por correo',
@@ -42,8 +51,8 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   const token = new URL(request.url).searchParams.get('t');
-  const userId = readUnsubscribeToken(token);
-  if (!userId) return page('Enlace no válido', '<h1 style="margin:0 0 8px;font-size:20px">Este enlace no es válido</h1>', 400);
+  const subject = readUnsubscribeSubject(token);
+  if (!subject) return page('Enlace no válido', '<h1 style="margin:0 0 8px;font-size:20px">Este enlace no es válido</h1>', 400);
 
   // Del botón sale "accion"; el "darse de baja" de Gmail/Outlook manda "List-Unsubscribe=One-Click"
   let accion: string = 'baja';
@@ -55,9 +64,12 @@ export async function POST(request: Request) {
   }
 
   const optout = accion === 'baja';
-  const { error } = await adminClient().from('profiles').update({ email_optout: optout }).eq('id', userId);
+  const { error } =
+    subject.kind === 'lead'
+      ? await adminClient().from('map_leads').update({ unsubscribed_at: optout ? new Date().toISOString() : null }).eq('id', subject.id)
+      : await adminClient().from('profiles').update({ email_optout: optout }).eq('id', subject.id);
   if (error) {
-    console.error('No se pudo actualizar email_optout:', error);
+    console.error('No se pudo actualizar la baja de avisos:', error);
     return page('No se pudo guardar', '<h1 style="margin:0 0 8px;font-size:20px">No pudimos guardar tu cambio</h1><p style="font-size:14px">Inténtalo de nuevo en unos minutos.</p>', 500);
   }
 
