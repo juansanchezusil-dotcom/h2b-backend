@@ -15,7 +15,7 @@ export async function GET(request: Request) {
 
   const { data, error } = await adminClient()
     .from('map_leads')
-    .select('email, nombre, role, stage, answers, created_at, updated_at, unsubscribed_at, reminder_sent_at')
+    .select('email, nombre, role, stage, answers, created_at, updated_at, unsubscribed_at, reminder_sent_at, skip_reminder')
     .order('updated_at', { ascending: false })
     .limit(500);
   if (error) {
@@ -56,6 +56,7 @@ export async function POST(request: Request) {
       .select('id, email, nombre')
       .is('unsubscribed_at', null)
       .is('reminder_sent_at', null)
+      .eq('skip_reminder', false)
       .limit(SEND_CAP);
     if (error) return NextResponse.json({ error: 'No se pudo leer la lista.' }, { status: 500 });
 
@@ -84,6 +85,23 @@ export async function POST(request: Request) {
       if (markError) console.error('No se pudo marcar el recordatorio como enviado:', markError);
     }
     return NextResponse.json({ ok: true, sent, failed, restantes: (data || []).length === SEND_CAP });
+  }
+
+  // { accion: 'excluir', emails: [...] } -> esas personas no recibirán el recordatorio (ya están en la masterclass)
+  // { accion: 'incluir', emails: [...] }  -> deshace la exclusión
+  if (body.accion === 'excluir' || body.accion === 'incluir') {
+    const emails: string[] = (Array.isArray(body.emails) ? body.emails : [])
+      .map((e: unknown) => String(e || '').trim().toLowerCase())
+      .filter((e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e))
+      .slice(0, 2000);
+    if (!emails.length) return NextResponse.json({ error: 'No encontramos correos válidos en lo que pegaste.' }, { status: 400 });
+    const { data, error } = await adminClient()
+      .from('map_leads')
+      .update({ skip_reminder: body.accion === 'excluir' })
+      .in('email', emails)
+      .select('email');
+    if (error) return NextResponse.json({ error: 'No se pudo guardar.' }, { status: 500 });
+    return NextResponse.json({ ok: true, recibidos: emails.length, coinciden: (data || []).length });
   }
 
   return NextResponse.json({ error: 'Acción no válida' }, { status: 400 });
