@@ -19,11 +19,33 @@ export async function GET(request: Request) {
 
   const resend = new Resend(process.env.RESEND_API_KEY!);
 
-  // Todo el cálculo de tiempo se basa SIEMPRE en created_at (fecha real de
-  // postulación), nunca en last_updated — esa columna cambia con cualquier
-  // edición (una nota, un drag) y reiniciaría el conteo sin querer.
-  const daysSinceApplied = (app: { created_at: string }) =>
-    (Date.now() - new Date(app.created_at).getTime()) / (1000 * 60 * 60 * 24);
+  // El conteo parte del día en que la postulación pasó de verdad a "postulado" (historial de cambios de
+  // estado, que llena un trigger), no del día en que se creó la tarjeta: quien guarda una oferta y postula
+  // días después no debe heredar esos días. Sin historial (tarjetas antiguas) se usa created_at. Nunca
+  // last_updated: cambia con cualquier edición (una nota, un drag) y reiniciaría el conteo sin querer.
+  const appliedAt = new Map<string, string>();
+  const fillApplied = async (apps: { id: string }[]) => {
+    const ids = apps.map((a) => a.id).filter((id) => !appliedAt.has(id));
+    for (let i = 0; i < ids.length; i += 150) {
+      const { data, error } = await supabase
+        .from('application_events')
+        .select('application_id, created_at')
+        .in('application_id', ids.slice(i, i + 150))
+        .in('to_status', ['postulado', 'seguimiento'])
+        .eq('source', 'trigger')
+        .order('created_at', { ascending: true });
+      if (error) {
+        console.error('No se pudo leer el historial de postulaciones (se usa created_at):', error);
+        continue;
+      }
+      for (const e of data || []) {
+        // Ordenado de más antiguo a más reciente: se queda con la primera vez que pasó a postulado
+        if (!appliedAt.has(e.application_id)) appliedAt.set(e.application_id, e.created_at);
+      }
+    }
+  };
+  const daysSinceApplied = (app: { id: string; created_at: string }) =>
+    (Date.now() - new Date(appliedAt.get(app.id) || app.created_at).getTime()) / (1000 * 60 * 60 * 24);
 
   const getUserEmail = async (userId: string) => {
     const { data, error } = await supabase.auth.admin.getUserById(userId);
@@ -52,6 +74,7 @@ export async function GET(request: Request) {
     console.error('Error consultando candidatos día 21:', day21Error);
   }
 
+  await fillApplied(day21Candidates || []);
   for (const app of day21Candidates || []) {
     if (daysSinceApplied(app) < 21) continue;
 
@@ -110,6 +133,7 @@ export async function GET(request: Request) {
     console.error('Error consultando candidatos día 14:', day14Error);
   }
 
+  await fillApplied(day14Candidates || []);
   for (const app of day14Candidates || []) {
     const days = daysSinceApplied(app);
     if (days < 14) continue;
@@ -176,6 +200,7 @@ export async function GET(request: Request) {
     console.error('Error consultando candidatos día 7:', day7Error);
   }
 
+  await fillApplied(day7Candidates || []);
   for (const app of day7Candidates || []) {
     const days = daysSinceApplied(app);
     if (days < 7 || days >= 14) continue;
