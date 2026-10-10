@@ -43,21 +43,22 @@ export async function POST(request: Request) {
     passport: YESNO.includes(a.passport) ? a.passport : '',
   };
 
-  const { error } = await adminClient()
-    .from('map_leads')
-    .upsert(
-      {
-        email,
-        nombre: clip(body.nombre, 80) || null,
-        consent_at: new Date().toISOString(),
-        role: role || null,
-        industry: role || null,
-        stage: clip(body.stage, 20) || null,
-        answers,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: 'email' }
-    );
+  // El índice único es sobre lower(email), así que no sirve para "on conflict": se busca y se actualiza o se crea.
+  // El correo ya viene en minúsculas.
+  const supabase = adminClient();
+  const row = {
+    nombre: clip(body.nombre, 80) || null,
+    consent_at: new Date().toISOString(),
+    role: role || null,
+    industry: role || null,
+    stage: clip(body.stage, 20) || null,
+    answers,
+    updated_at: new Date().toISOString(),
+  };
+  const existing = await supabase.from('map_leads').select('id').eq('email', email).maybeSingle();
+  const { error } = existing.data
+    ? await supabase.from('map_leads').update(row).eq('id', existing.data.id)
+    : await supabase.from('map_leads').insert({ email, ...row });
   if (error) {
     console.error('Error guardando el correo del Mapa público:', error);
     return NextResponse.json({ error: 'No pudimos guardar tu correo. Intenta de nuevo.' }, { status: 500, headers });
