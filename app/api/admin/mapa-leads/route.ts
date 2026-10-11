@@ -3,6 +3,8 @@ import { Resend } from 'resend';
 import { adminClient, requireAdmin } from '../../../../src/admin/auth';
 import { renderMapaReminder } from '../../../../src/email/templates';
 import { leadUnsubscribeUrl } from '../../../../src/email/unsubscribe';
+import { renderMapaSequence } from '../../../../src/email/templates';
+import { SEQUENCE, MASTERCLASS_URL as SEQ_MASTERCLASS_URL, MAPA_URL, sequenceEnabled } from '../../../../src/email/mapaSequence';
 
 const MASTERCLASS_URL = 'https://juanteavisa.com/masterclass-h2b/';
 const FROM = () => process.env.ENGAGEMENT_FROM || 'Juan Te Avisa <juan@mail.juanteavisa.com>';
@@ -15,14 +17,24 @@ export async function GET(request: Request) {
 
   const { data, error } = await adminClient()
     .from('map_leads')
-    .select('email, nombre, role, stage, answers, created_at, updated_at, unsubscribed_at, reminder_sent_at, skip_reminder')
+    .select('email, nombre, role, stage, answers, created_at, updated_at, unsubscribed_at, reminder_sent_at, skip_reminder, sequence_step')
     .order('updated_at', { ascending: false })
     .limit(500);
   if (error) {
     console.error('Error leyendo los contactos del Mapa:', error);
     return NextResponse.json({ error: 'No se pudo cargar la lista.' }, { status: 500 });
   }
-  return NextResponse.json({ leads: data || [] });
+  // Estado de la secuencia, para mostrarlo en el panel
+  const secuencia = {
+    activa: sequenceEnabled(),
+    pasos: SEQUENCE.map((p) => ({
+      paso: p.step,
+      nombre: p.name,
+      desde: new Date(p.from).toISOString(),
+      enviados: (data || []).filter((l: { sequence_step?: number }) => (l.sequence_step || 0) >= p.step).length,
+    })),
+  };
+  return NextResponse.json({ leads: data || [], secuencia });
 }
 
 // { accion: 'prueba' }  -> te manda el recordatorio a ti, con datos de ejemplo
@@ -40,8 +52,10 @@ export async function POST(request: Request) {
   if (body.accion === 'prueba') {
     const to = (process.env.ADMIN_EMAILS || '').split(',')[0]?.trim();
     if (!to) return NextResponse.json({ error: 'Falta ADMIN_EMAILS' }, { status: 500 });
-    const r = renderMapaReminder({ nombre: 'Ana Pérez', masterclassUrl: MASTERCLASS_URL, unsubscribeUrl: 'https://h2b-backend-three.vercel.app/api/avisos?t=ejemplo' });
-    const { error } = await resend.emails.send({ from: FROM(), to, subject: '[EJEMPLO] ' + r.subject, html: r.html, text: r.text, replyTo });
+    const paso = Number(body.paso) || 1;
+    const sample = { nombre: 'Ana Pérez', masterclassUrl: SEQ_MASTERCLASS_URL, mapaUrl: MAPA_URL, unsubscribeUrl: 'https://h2b-backend-three.vercel.app/api/avisos?t=ejemplo' };
+    const r = paso >= 2 && paso <= 4 ? renderMapaSequence(paso, sample) : renderMapaReminder({ nombre: 'Ana Pérez', masterclassUrl: MASTERCLASS_URL, unsubscribeUrl: sample.unsubscribeUrl });
+    const { error } = await resend.emails.send({ from: FROM(), to, subject: `[EJEMPLO · paso ${paso}] ` + r.subject, html: r.html, text: r.text, replyTo });
     if (error) return NextResponse.json({ error: 'Resend rechazó el correo de prueba.' }, { status: 502 });
     return NextResponse.json({ ok: true, to });
   }
@@ -57,6 +71,7 @@ export async function POST(request: Request) {
       .is('unsubscribed_at', null)
       .is('reminder_sent_at', null)
       .eq('skip_reminder', false)
+      .lt('sequence_step', 1)
       .limit(SEND_CAP);
     if (error) return NextResponse.json({ error: 'No se pudo leer la lista.' }, { status: 500 });
 
@@ -81,7 +96,7 @@ export async function POST(request: Request) {
       }
       sent++;
       // Se registra después de enviar: si falla, lo peor es repetir uno, nunca dejar a alguien sin saber
-      const { error: markError } = await supabase.from('map_leads').update({ reminder_sent_at: new Date().toISOString() }).eq('id', lead.id);
+      const { error: markError } = await supabase.from('map_leads').update({ reminder_sent_at: new Date().toISOString(), sequence_step: 1 }).eq('id', lead.id);
       if (markError) console.error('No se pudo marcar el recordatorio como enviado:', markError);
     }
     return NextResponse.json({ ok: true, sent, failed, restantes: (data || []).length === SEND_CAP });

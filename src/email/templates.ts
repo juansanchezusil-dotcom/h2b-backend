@@ -221,3 +221,66 @@ export function renderMapaReminder(d: { nombre: string | null; masterclassUrl: s
   const text = [...paragraphs, `Reservar mi lugar: ${d.masterclassUrl}`, '— Juan', '', `Recibes este correo porque dejaste tu correo en el Mapa H2B de Juan Te Avisa y aceptaste que te escribamos. Para no recibir más mensajes: ${d.unsubscribeUrl}`].join('\n\n');
   return { subject, html, text };
 }
+
+// Correos 2 a 4 de la secuencia del Mapa público. Mismo formato que el recordatorio inicial: sin urgencia
+// inventada (las fechas son las reales), sin promesas de resultado y con la baja a la vista.
+export function renderMapaSequence(
+  step: number,
+  d: { nombre: string | null; masterclassUrl: string; mapaUrl: string; unsubscribeUrl: string }
+): RenderedEmail {
+  const hola = firstName(d.nombre) ? `Hola ${firstName(d.nombre)}, soy Juan.` : 'Hola, soy Juan.';
+  let subject = '';
+  let paragraphs: string[] = [];
+  let button = { label: 'Reservar mi lugar', url: d.masterclassUrl };
+
+  if (step === 2) {
+    subject = 'Esto vas a armar en la masterclass del 25 de noviembre';
+    paragraphs = [
+      hola,
+      'Te cuento qué vamos a hacer el 25 de noviembre, para que llegues sabiendo qué esperar: tu etapa y tu plan de 3 semanas, cómo armar tu CV en formato americano, cómo verificar una oferta antes de postular y tu dashboard para guardar ofertas, empresas y agencias.',
+      'Si ya reservaste tu lugar, no tienes que hacer nada más. Si todavía no, puedes hacerlo aquí. Y si tienes una duda, respóndeme este correo.',
+    ];
+  } else if (step === 3) {
+    subject = 'Hoy es la masterclass';
+    button = { label: 'Entrar a la masterclass', url: d.masterclassUrl };
+    paragraphs = [
+      hola,
+      'Hoy es la masterclass. Empezamos a las 7:00 p. m., hora de Perú.',
+      'Usa el enlace que recibiste al reservar tu lugar. Si no lo encuentras, entra desde aquí.',
+      'Ten a la mano tu CV, si ya tienes uno, y un cuaderno o un archivo para anotar. Nos vemos esta noche.',
+    ];
+  } else {
+    subject = 'Cómo seguir con tu Mapa H2B después de la masterclass';
+    button = { label: 'Armar mi Mapa H2B', url: d.mapaUrl };
+    paragraphs = [
+      hola,
+      'La masterclass ya pasó. Si estuviste, ya tienes tu plan de 3 semanas y tu dashboard para empezar.',
+      'Si no pudiste conectarte, respóndeme este correo y te cuento cómo ponerte al día. Mientras tanto, puedes armar tu Mapa H2B desde aquí.',
+    ];
+  }
+
+  const body = paragraphs.map((p) => `<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#1e293b">${escapeHtml(p)}</p>`).join('');
+  const html = `<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(subject)}</title></head>
+<body style="margin:0;background:#f1f5f9;font-family:Arial,Helvetica,sans-serif">
+<div style="max-width:560px;margin:0 auto;padding:24px 16px">
+  <div style="background:${NAVY};border-radius:12px 12px 0 0;padding:18px 24px"><span style="color:${GOLD};font-weight:700;font-size:14px;letter-spacing:0.22em">JUAN TE AVISA</span></div>
+  <div style="background:#ffffff;padding:28px 24px;border-radius:0 0 12px 12px">
+    ${body}
+    <p style="margin:24px 0"><a href="${escapeHtml(button.url)}" style="display:inline-block;background:${GOLD};color:${NAVY};font-weight:700;font-size:14px;text-decoration:none;padding:12px 22px;border-radius:10px">${escapeHtml(button.label)}</a></p>
+    <p style="margin:0;font-size:15px;color:#1e293b">— Juan</p>
+  </div>
+  <p style="margin:16px 8px 0;font-size:11px;line-height:1.5;color:#64748b">
+    Recibes este correo porque dejaste tu correo en el Mapa H2B de Juan Te Avisa y aceptaste que te escribamos. Puedes responderlo: me llega a mí.
+    Si prefieres no recibir más mensajes, <a href="${escapeHtml(d.unsubscribeUrl)}" style="color:#64748b">date de baja aquí</a>.
+  </p>
+</div></body></html>`;
+  const text = [
+    ...paragraphs,
+    `${button.label}: ${button.url}`,
+    '— Juan',
+    '',
+    `Recibes este correo porque dejaste tu correo en el Mapa H2B de Juan Te Avisa y aceptaste que te escribamos. Para no recibir más mensajes: ${d.unsubscribeUrl}`,
+  ].join('\n\n');
+  return { subject, html, text };
+}

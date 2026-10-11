@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
 import { runEngagement } from '../../../../src/email/engagement';
+import { runMapaSequence } from '../../../../src/email/mapaSequence';
 
 export async function GET(request: Request) {
   const authHeader = request.headers.get('authorization');
@@ -256,8 +257,18 @@ export async function GET(request: Request) {
     engagement = { error: 'falló, ver los registros' };
   }
 
+  // Secuencia de correos de la masterclass para los contactos del Mapa público (apagada por defecto)
+  let mapaSequence: unknown = null;
+  try {
+    mapaSequence = await runMapaSequence({ supabase, resend, now: Date.now() });
+  } catch (err) {
+    console.error('Error en la secuencia del Mapa público:', err);
+    mapaSequence = { error: 'falló, ver los registros' };
+  }
+
   return NextResponse.json({
     message: 'Recordatorios procesados',
+    mapaSequence,
     promoted7,
     reminders14,
     closed21,
