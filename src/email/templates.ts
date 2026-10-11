@@ -284,3 +284,24 @@ export function renderMapaSequence(
   ].join('\n\n');
   return { subject, html, text };
 }
+
+// Correo transaccional: la persona pidió recuperar su Mapa público. No es un mensaje comercial.
+export function renderMapaRecover(d: { nombre: string | null; link: string }): RenderedEmail {
+  const hola = firstName(d.nombre) ? `Hola ${firstName(d.nombre)}, soy Juan.` : 'Hola, soy Juan.';
+  const subject = 'Tu enlace para ver tu Mapa H2B';
+  const paragraphs = [hola, 'Pediste recuperar tu Mapa H2B. Usa este enlace para verlo de nuevo; funciona por 24 horas.', 'Si no fuiste tú, ignora este correo: no pasa nada.'];
+  const body = paragraphs.map((p) => `<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#1e293b">${escapeHtml(p)}</p>`).join('');
+  const html = `<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(subject)}</title></head>
+<body style="margin:0;background:#f1f5f9;font-family:Arial,Helvetica,sans-serif">
+<div style="max-width:560px;margin:0 auto;padding:24px 16px">
+  <div style="background:${NAVY};border-radius:12px 12px 0 0;padding:18px 24px"><span style="color:${GOLD};font-weight:700;font-size:14px;letter-spacing:0.22em">JUAN TE AVISA</span></div>
+  <div style="background:#ffffff;padding:28px 24px;border-radius:0 0 12px 12px">
+    ${body}
+    <p style="margin:24px 0"><a href="${escapeHtml(d.link)}" style="display:inline-block;background:${GOLD};color:${NAVY};font-weight:700;font-size:14px;text-decoration:none;padding:12px 22px;border-radius:10px">Ver mi Mapa H2B</a></p>
+    <p style="margin:0;font-size:15px;color:#1e293b">— Juan</p>
+  </div>
+</div></body></html>`;
+  const text = [...paragraphs, `Ver mi Mapa H2B: ${d.link}`, '— Juan'].join('\n\n');
+  return { subject, html, text };
+}

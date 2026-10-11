@@ -55,3 +55,24 @@ export function readUnsubscribeSubject(token: string | null | undefined): { kind
   }
   return /^[0-9a-f-]{36}$/i.test(subject) ? { kind: 'user', id: subject } : null;
 }
+
+// Enlace para recuperar el Mapa público desde el correo: id del contacto, vencimiento y firma.
+const ACCESS_TTL_MS = 24 * 60 * 60 * 1000;
+const signAccess = (leadId: string, exp: number) => createHmac('sha256', secret()).update(`r|${leadId}|${exp}`).digest('hex').slice(0, 32);
+
+export function makeLeadAccessToken(leadId: string, now = Date.now()): string {
+  const exp = now + ACCESS_TTL_MS;
+  return `${leadId}~${exp}~${signAccess(leadId, exp)}`;
+}
+
+// Devuelve el id del contacto si la firma es válida y no venció; si no, null.
+export function readLeadAccessToken(token: string | null | undefined, now = Date.now()): string | null {
+  if (!token) return null;
+  const [leadId, expRaw, sig] = token.split('~');
+  const exp = Number(expRaw);
+  if (!leadId || !sig || !Number.isFinite(exp) || exp < now) return null;
+  const given = Buffer.from(sig);
+  const expected = Buffer.from(signAccess(leadId, exp));
+  if (given.length !== expected.length || !timingSafeEqual(given, expected)) return null;
+  return /^[0-9a-f-]{36}$/i.test(leadId) ? leadId : null;
+}
