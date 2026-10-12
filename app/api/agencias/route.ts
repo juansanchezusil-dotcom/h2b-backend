@@ -5,7 +5,7 @@ import { supabase } from '@/src/db/supabase';
 
 export async function GET() {
   try {
-    const { data, error } = await supabase.from('agencies').select('*').limit(2000);
+    const { data, error } = await supabase.from('sponsor_agencies').select('*').limit(2000);
 
     if (error) {
       console.error('Error leyendo agencias:', error);
