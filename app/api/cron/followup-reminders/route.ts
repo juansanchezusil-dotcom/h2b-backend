@@ -4,10 +4,10 @@ import { createClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
 import { runEngagement } from '../../../../src/email/engagement';
 import { runMapaSequence } from '../../../../src/email/mapaSequence';
+import { isCronAuthorized } from '../../../../src/auth/cronAuth';
 
 export async function GET(request: Request) {
-  const authHeader = request.headers.get('authorization');
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!isCronAuthorized(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

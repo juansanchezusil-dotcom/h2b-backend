@@ -7,11 +7,12 @@ export async function GET() {
   try {
     const { data, error } = await supabase
       .from('sponsor_companies')
-      .select('*')
+      .select('id, employer_name, state, city, petition_count, total_approved, fiscal_year, naics, wage_range, soc')
       .limit(500);
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error('Error leyendo empresas:', error);
+      return NextResponse.json({ error: 'No se pudieron cargar las empresas.' }, { status: 500 });
     }
 
     const formattedCompanies = (data || []).map((item) => ({
@@ -31,6 +32,7 @@ export async function GET() {
 
     return NextResponse.json(formattedCompanies, { status: 200 });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error('Error en /api/employers:', err);
+    return NextResponse.json({ error: 'Error interno' }, { status: 500 });
   }
 }

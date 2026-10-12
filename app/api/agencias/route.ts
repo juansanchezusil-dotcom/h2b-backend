@@ -5,14 +5,16 @@ import { supabase } from '@/src/db/supabase';
 
 export async function GET() {
   try {
-    const { data, error } = await supabase.from('agencies').select('*');
+    const { data, error } = await supabase.from('agencies').select('*').limit(2000);
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error('Error leyendo agencias:', error);
+      return NextResponse.json({ error: 'No se pudieron cargar las agencias.' }, { status: 500 });
     }
 
     return NextResponse.json(data);
   } catch (err: any) {
-    return NextResponse.json({ error: err.message || 'Error interno' }, { status: 500 });
+    console.error('Error en /api/agencias:', err);
+    return NextResponse.json({ error: 'Error interno' }, { status: 500 });
   }
 }
