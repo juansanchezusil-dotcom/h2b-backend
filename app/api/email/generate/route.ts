@@ -19,7 +19,7 @@ export async function OPTIONS(request: Request) {
 const EMAIL_TYPES: Record<string, string> = {
   initial: 'Primer contacto: se postula a la vacante por primera vez.',
   reply:
-    'Respuesta a un mensaje que la empresa le escribió al candidato. Contesta SOLO a lo que el mensaje pregunta o pide, de forma breve y cordial, con datos que el candidato ya dio en su CV. Si la empresa pide algo que el CV no dice (fechas disponibles, certificaciones, nivel de inglés, documentos), NO lo inventes: deja un marcador entre corchetes con inglés claro, por ejemplo [your available start date], y dilo en nota_es. Si propone una entrevista, confirma el interés y pide o confirma el horario sin inventar disponibilidad. Si es un rechazo, responde con una frase breve y agradecida. No confundas una invitación a entrevista con una oferta de empleo.',
+    'Respuesta a un mensaje que la empresa le escribió al candidato. Contesta SOLO a lo que el mensaje pregunta o pide, de forma breve y cordial, con datos que el candidato ya dio en su CV o en "Disponibilidad indicada por el candidato". Reglas: (1) Nunca inventes fechas, horas, disponibilidad, certificaciones, nivel de inglés ni documentos. (2) INVITACIÓN A ENTREVISTA: reconoce que la candidatura avanzó a entrevista, sin hablar de oferta de empleo, y NO afirmes que la entrevista está confirmada hasta que existan fecha y hora acordadas. Si el mensaje pide fechas, horarios o la modalidad (llamada, virtual, presencial) y el candidato NO indicó su disponibilidad abajo, NO redactes el correo: deja subject_en, body_en, subject_es y body_es vacíos y llena "faltan_datos_es" con preguntas concretas y cortas en español (qué días y horarios puede, y si puede en llamada, virtual o presencial según lo que pidan). Cuando sí hay disponibilidad, redáctala fielmente y no agregues ejemplos ni horarios que el candidato no dio. (3) No dejes campos entre corchetes en el correo, salvo un dato imprescindible que solo el candidato conozca; si lo dejas, dilo en nota_es. (4) Si es un rechazo, responde con una frase breve y agradecida. (5) No confundas una invitación a entrevista con una oferta de empleo.',
   followup_7d:
     'Primer seguimiento. Es un mensaje BREVE y cordial para preguntar por el estado de la postulación. Estructura: "I am writing to follow up on my application for the [puesto] position at [empresa]. I remain interested in the opportunity and would appreciate any updates you may be able to share regarding my application." Después: "Thank you for your time and consideration. Please let me know if you need any additional information from me." Cierra con "Best regards," y el nombre. NO digas cuánto tiempo pasó ("last week", "a week ago"): puede ser impreciso. NO añadas experiencia ni habilidades del CV a menos que sean claramente pertinentes al puesto y estén respaldadas por el CV; por defecto, no las incluyas. El asunto es "Follow-Up on [puesto] Application – [nombre del candidato]".',
   followup_14d:
@@ -43,6 +43,7 @@ export async function POST(request: Request) {
     const companyName: string = body.companyName || 'your company';
     const location: string = body.location || '';
     const jobReference: string = typeof body.jobReference === 'string' ? body.jobReference.trim().slice(0, 60) : '';
+    const availability: string = typeof body.availability === 'string' ? body.availability.trim().slice(0, 600) : '';
     const employerMessage: string = typeof body.employerMessage === 'string' ? body.employerMessage.trim().slice(0, 3000) : '';
     const jobDuties: string = typeof body.jobDuties === 'string' ? body.jobDuties.trim().slice(0, 1500) : '';
     const candidateName: string = body.candidateName || '';
@@ -105,7 +106,8 @@ ${employerMessage}
 """
 
 ` : ''}Datos del candidato:
-- Nombre: ${candidateName || '[Tu nombre]'}
+${emailType === 'reply' ? `- Disponibilidad indicada por el candidato (en sus palabras): ${availability || 'NO la indicó'}
+` : ''}- Nombre: ${candidateName || '[Tu nombre]'}
 - Nivel de inglés: ${englishLevel || 'No especificado'}
 - Habilidades: ${skills.join(', ') || 'No especificadas'}
 - Experiencia en sus propias palabras:
@@ -118,6 +120,8 @@ Responde ÚNICAMENTE con un objeto JSON con estas claves:
 - "body_en": el cuerpo del correo en inglés, listo para enviar, firmado con el nombre del candidato.
 - "subject_es": traducción del asunto al español (solo para que el candidato entienda, no se envía así).
 - "body_es": traducción del cuerpo al español (solo para que el candidato entienda, no se envía así).
+- "faltan_datos_es": array de strings en español con lo que falta preguntar al candidato ANTES de redactar (vacío [] si no falta nada).
+- "es_invitacion_entrevista": true si el mensaje de la empresa invita a una entrevista; si no, false.
 - "nota_es": 1 o 2 frases en español con lo que el candidato debe revisar o adjuntar antes de enviar (por ejemplo: comprobar que el puesto y la empresa sean los correctos, completar un dato que falte; en el correo inicial, adjuntar su CV; en un seguimiento NO le pidas volver a adjuntar el CV, y recuérdale revisar que esa postulación no haya recibido ya una respuesta). Sin promesas de resultado.`;
 
     // Gemini a veces responde 503 "high demand" de forma pasajera; 2 reintentos
