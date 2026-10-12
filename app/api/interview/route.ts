@@ -11,6 +11,7 @@ import {
   clip,
   summarizeScores,
   type CandidateInfo,
+  type JobInfo,
   type Module,
   type Turn,
 } from '../../../src/ai/interviewSim';
@@ -73,13 +74,15 @@ export async function POST(request: Request) {
         englishLevel: clip(c.englishLevel, 60),
         cvText: clip(c.cvText, 3500),
       };
+      const j = body.job && typeof body.job === 'object' ? body.job : null;
+      const job: JobInfo | null = j && clip(j.title, 120) ? { title: clip(j.title, 120), company: clip(j.company, 120), duties: clip(j.duties, 1800) } : null;
       const turns: Turn[] = (Array.isArray(body.turns) ? body.turns : [])
         .map((t: any) => ({ q: clip(t?.q, 400), a: clip(t?.a, 1200) }))
         .filter((t: Turn) => t.q)
         .slice(0, 16);
 
       if (mode === 'next') {
-        const parsed = await ask(buildNextPrompt({ module, candidate, turns }));
+        const parsed = await ask(buildNextPrompt({ module, candidate, turns, job }));
         const questionEn = clip(parsed.question_en, 500);
         if (!questionEn) return NextResponse.json({ errorCode: 'GENERIC', error: 'No se pudo preparar la siguiente pregunta. Intenta de nuevo.' }, { status: 502, headers });
         return NextResponse.json(
@@ -98,7 +101,7 @@ export async function POST(request: Request) {
       if (mode === 'help') {
         const questionEn = clip(body.questionEn, 500);
         if (!questionEn) return NextResponse.json({ error: 'Falta la pregunta.' }, { status: 400, headers });
-        const parsed = await ask(buildHelpPrompt({ module, candidate, questionEn }));
+        const parsed = await ask(buildHelpPrompt({ module, candidate, questionEn, job }));
         return NextResponse.json(
           {
             meaning_es: clip(parsed.meaning_es, 600),
@@ -114,7 +117,7 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Responde al menos una pregunta para recibir el informe.' }, { status: 400, headers });
       }
       const hasDocs = candidate.cvText.length >= 30;
-      const parsed = await ask(buildReportPrompt({ module, candidate, turns, hasDocs }));
+      const parsed = await ask(buildReportPrompt({ module, candidate, turns, hasDocs, job }));
       const list = (v: unknown, n: number, len = 400) => (Array.isArray(v) ? v.map((s) => clip(s, len)).filter(Boolean).slice(0, n) : []);
       const report = {
         module,
@@ -139,6 +142,9 @@ export async function POST(request: Request) {
           .slice(0, 5)
           .map((q: any) => ({ en: clip(q?.en, 400), es: clip(q?.es, 400) }))
           .filter((q: { en: string }) => q.en),
+        encaje_tiene_es: job ? list(parsed.encaje_tiene_es, 6) : [],
+        encaje_falta_es: job ? list(parsed.encaje_falta_es, 6) : [],
+        job_title: job?.title || '',
         closing_es: clip(parsed.closing_es, 700),
         has_docs: hasDocs,
       };
