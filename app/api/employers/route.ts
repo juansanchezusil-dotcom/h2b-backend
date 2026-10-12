@@ -2,8 +2,13 @@ export const dynamic = 'force-dynamic';
 
 import { NextResponse } from 'next/server';
 import { supabase } from '@/src/db/supabase';
+import { requireMember } from '@/src/auth/member';
 
-export async function GET() {
+export async function GET(request: Request) {
+  // Estas rutas usan la llave de servicio (no pasan por RLS): sin esto, cualquiera descargaba el catálogo
+  const blocked = await requireMember(request);
+  if (blocked) return blocked;
+
   try {
     const { data, error } = await supabase
       .from('sponsor_companies')
