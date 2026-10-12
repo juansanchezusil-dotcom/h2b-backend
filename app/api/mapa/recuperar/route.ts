@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
 import { adminClient } from '../../../../src/admin/auth';
+import { allowRequest } from '../../../../src/auth/rateLimit';
 import { renderMapaRecover } from '../../../../src/email/templates';
 import { makeLeadAccessToken } from '../../../../src/email/unsubscribe';
 import { MAPA_URL } from '../../../../src/email/mapaSequence';
@@ -20,6 +21,10 @@ export async function OPTIONS() {
 }
 
 export async function POST(request: Request) {
+  // 5 pedidos por hora por conexión: evita usar la ruta para llenar bandejas ajenas
+  if (!(await allowRequest(request, 'mapa_recuperar', 5, 3600))) {
+    return NextResponse.json({ error: 'Demasiados intentos. Intenta de nuevo en un rato.' }, { status: 429, headers });
+  }
   const body = await request.json().catch(() => ({}));
   const email = typeof body.email === 'string' ? body.email.trim().toLowerCase().slice(0, 254) : '';
   if (!EMAIL.test(email)) return NextResponse.json({ error: 'Escribe un correo válido.' }, { status: 400, headers });

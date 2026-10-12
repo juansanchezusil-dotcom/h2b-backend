@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { adminClient } from '../../../../src/admin/auth';
 import { readLeadAccessToken } from '../../../../src/email/unsubscribe';
+import { allowRequest } from '../../../../src/auth/rateLimit';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,6 +18,9 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: Request) {
+  if (!(await allowRequest(request, 'mapa_respuestas', 30, 3600))) {
+    return NextResponse.json({ error: 'Demasiados intentos. Intenta de nuevo en un rato.' }, { status: 429, headers });
+  }
   const leadId = readLeadAccessToken(new URL(request.url).searchParams.get('t'));
   if (!leadId) return NextResponse.json({ error: 'El enlace venció o no es válido. Pide uno nuevo.' }, { status: 400, headers });
 

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { adminClient } from '../../../../src/admin/auth';
+import { allowRequest } from '../../../../src/auth/rateLimit';
 
 // Mapa H2B público: guarda el correo de quien completó el cuestionario y aceptó que le escriban.
 // Es una ruta abierta (no hay cuenta), por eso valida todo y solo guarda lo mínimo.
@@ -22,6 +23,10 @@ const ENGLISH = ['Básico', 'Intermedio', 'Avanzado'];
 const YESNO = ['si', 'no', 'no_se'];
 
 export async function POST(request: Request) {
+  // 6 correos por hora desde la misma conexión: alcanza para una persona y frena a los programas
+  if (!(await allowRequest(request, 'mapa_lead', 6, 3600))) {
+    return NextResponse.json({ error: 'Demasiados intentos. Intenta de nuevo en un rato.' }, { status: 429, headers });
+  }
   const body = await request.json().catch(() => ({}));
 
   // Campo trampa: las personas no lo ven; si viene lleno es un programa
