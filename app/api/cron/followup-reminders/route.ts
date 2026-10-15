@@ -4,6 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
 import { runEngagement } from '../../../../src/email/engagement';
 import { runMapaSequence } from '../../../../src/email/mapaSequence';
+import { runJobAlerts } from '../../../../src/email/jobAlerts';
 import { isCronAuthorized } from '../../../../src/auth/cronAuth';
 
 export async function GET(request: Request) {
@@ -266,8 +267,18 @@ export async function GET(request: Request) {
     mapaSequence = { error: 'falló, ver los registros' };
   }
 
+  // Aviso semanal de ofertas nuevas del puesto de cada miembro (mismo interruptor que los demás correos)
+  let jobAlerts: unknown = null;
+  try {
+    jobAlerts = await runJobAlerts({ supabase, resend, now: Date.now() });
+  } catch (err) {
+    console.error('Error en los avisos de ofertas:', err);
+    jobAlerts = { error: 'falló, ver los registros' };
+  }
+
   return NextResponse.json({
     message: 'Recordatorios procesados',
+    jobAlerts,
     mapaSequence,
     promoted7,
     reminders14,

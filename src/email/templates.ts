@@ -305,3 +305,41 @@ export function renderMapaRecover(d: { nombre: string | null; link: string }): R
   const text = [...paragraphs, `Ver mi Mapa H2B: ${d.link}`, '— Juan'].join('\n\n');
   return { subject, html, text };
 }
+
+export interface AlertJob {
+  title: string;
+  employer: string;
+  location: string;
+}
+
+// Aviso semanal de ofertas nuevas del puesto de la persona. Sin urgencia inventada y sin prometer respuesta.
+export function renderJobAlert(d: { nombre: string | null; jobs: AlertJob[]; appUrl: string; unsubscribeUrl: string }): RenderedEmail {
+  const hola = firstName(d.nombre) ? `Hola ${firstName(d.nombre)}, soy Juan.` : 'Hola, soy Juan.';
+  const n = d.jobs.length;
+  const subject = n === 1 ? 'Hay 1 oferta nueva de tu puesto' : `Hay ${n} ofertas nuevas de tu puesto`;
+  const intro = n === 1 ? 'Esta semana apareció una oferta que coincide con el puesto que buscas:' : `Esta semana aparecieron ${n} ofertas que coinciden con el puesto que buscas:`;
+  const lines = d.jobs.map((j) => `${j.title} — ${j.employer}${j.location ? ` (${j.location})` : ''}`);
+  const closing = 'Entra a la app para ver el detalle de cada una. Antes de postular, verifica la oferta con tus 4 puntos: que esté en la fuente oficial, que el correo use el dominio de la empresa, que no pidan dinero y que todo esté por escrito.';
+
+  const list = lines.map((l) => `<li style="margin:0 0 8px;font-size:15px;line-height:1.5;color:#1e293b">${escapeHtml(l)}</li>`).join('');
+  const html = `<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(subject)}</title></head>
+<body style="margin:0;background:#f1f5f9;font-family:Arial,Helvetica,sans-serif">
+<div style="max-width:560px;margin:0 auto;padding:24px 16px">
+  <div style="background:${NAVY};border-radius:12px 12px 0 0;padding:18px 24px"><span style="color:${GOLD};font-weight:700;font-size:14px;letter-spacing:0.22em">JUAN TE AVISA</span></div>
+  <div style="background:#ffffff;padding:28px 24px;border-radius:0 0 12px 12px">
+    <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#1e293b">${escapeHtml(hola)}</p>
+    <p style="margin:0 0 12px;font-size:15px;line-height:1.6;color:#1e293b">${escapeHtml(intro)}</p>
+    <ul style="margin:0 0 16px;padding-left:20px">${list}</ul>
+    <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#1e293b">${escapeHtml(closing)}</p>
+    <p style="margin:24px 0"><a href="${escapeHtml(d.appUrl)}" style="display:inline-block;background:${GOLD};color:${NAVY};font-weight:700;font-size:14px;text-decoration:none;padding:12px 22px;border-radius:10px">Ver las ofertas</a></p>
+    <p style="margin:0;font-size:15px;color:#1e293b">— Juan</p>
+  </div>
+  <p style="margin:16px 8px 0;font-size:11px;line-height:1.5;color:#64748b">
+    Recibes este aviso porque eres miembro de Juan Te Avisa PRO y tu perfil indica este puesto. Si prefieres no recibirlo,
+    <a href="${escapeHtml(d.unsubscribeUrl)}" style="color:#64748b">date de baja aquí</a>.
+  </p>
+</div></body></html>`;
+  const text = [hola, intro, ...lines.map((l) => `- ${l}`), closing, `Ver las ofertas: ${d.appUrl}`, '— Juan', '', `Para no recibir estos avisos: ${d.unsubscribeUrl}`].join('\n\n');
+  return { subject, html, text };
+}
