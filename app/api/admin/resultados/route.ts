@@ -1,0 +1,43 @@
+import { NextResponse } from 'next/server';
+import { adminClient, requireAdmin } from '../../../../src/admin/auth';
+import { loadRadarInput } from '../../../../src/admin/loadRadar';
+import { computeRadar } from '../../../../src/admin/radar';
+import { computeResultados } from '../../../../src/admin/resultados';
+
+export const dynamic = 'force-dynamic';
+
+// Tablero de resultados: el camino de los miembros y del Mapa público en números. Solo administradores.
+export async function GET(request: Request) {
+  const denied = await requireAdmin(request);
+  if (denied) return denied;
+
+  try {
+    const supabase = adminClient();
+    const now = Date.now();
+    const input = await loadRadarInput(supabase, now);
+    const { miembros } = computeRadar(input);
+
+    const userIdByEmail = new Map<string, string>();
+    for (const [email, u] of input.users) userIdByEmail.set(email, u.id);
+
+    const [appsRes, leadsRes, accesosRes] = await Promise.all([
+      supabase.from('applications').select('user_id, job_title, status').limit(20000),
+      supabase.from('map_leads').select('email, unsubscribed_at, reminder_sent_at, skip_reminder').limit(5000),
+      supabase.from('accesos').select('email').limit(5000),
+    ]);
+    for (const r of [appsRes, leadsRes, accesosRes]) if (r.error) throw r.error;
+
+    const resultados = computeResultados({
+      miembros,
+      userIdByEmail,
+      statusCounts: input.statusCounts,
+      applications: appsRes.data || [],
+      leads: leadsRes.data || [],
+      accesoEmails: new Set((accesosRes.data || []).map((a: { email: string }) => a.email.trim().toLowerCase())),
+    });
+    return NextResponse.json({ ...resultados, generado: new Date(now).toISOString() });
+  } catch (err: any) {
+    console.error('Error calculando los resultados:', err);
+    return NextResponse.json({ error: 'No se pudieron calcular los resultados.' }, { status: 500 });
+  }
+}
