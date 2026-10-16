@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { userHasActiveAccess } from '../auth/member';
 
 // Cuántas llamadas a IA puede hacer una persona por día (UTC), sumando los 4 asistentes.
 export const DAILY_AI_LIMIT = 20;
@@ -38,6 +39,14 @@ export async function guardAiRequest(
     return NextResponse.json(
       { errorCode: 'UNAUTHENTICATED', error: 'Tu sesión expiró. Vuelve a iniciar sesión.' },
       { status: 401, headers }
+    );
+  }
+
+  // Las llamadas a IA cuestan dinero: solo miembros con acceso vigente (antes bastaba cualquier cuenta con sesión)
+  if (!(await userHasActiveAccess(supabase, data.user))) {
+    return NextResponse.json(
+      { errorCode: 'NO_ACCESS', error: 'Necesitas una membresía activa para usar los asistentes de IA.' },
+      { status: 403, headers }
     );
   }
 
