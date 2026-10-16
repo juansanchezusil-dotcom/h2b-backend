@@ -77,7 +77,7 @@ export async function GET(request: Request) {
   }
 
   await fillApplied(day21Candidates || []);
-  for (const app of day21Candidates || []) {
+  for (const app of (day21Candidates || []).filter((a: { reply_type?: string | null }) => !a.reply_type)) { // si el empleador ya respondió, no se le recuerda hacer seguimiento
     if (daysSinceApplied(app) < 21) continue;
 
     const email = await getUserEmail(app.user_id);
@@ -136,7 +136,7 @@ export async function GET(request: Request) {
   }
 
   await fillApplied(day14Candidates || []);
-  for (const app of day14Candidates || []) {
+  for (const app of (day14Candidates || []).filter((a: { reply_type?: string | null }) => !a.reply_type)) { // si el empleador ya respondió, no se le recuerda hacer seguimiento
     const days = daysSinceApplied(app);
     if (days < 14) continue;
 
@@ -203,7 +203,7 @@ export async function GET(request: Request) {
   }
 
   await fillApplied(day7Candidates || []);
-  for (const app of day7Candidates || []) {
+  for (const app of (day7Candidates || []).filter((a: { reply_type?: string | null }) => !a.reply_type)) { // si el empleador ya respondió, no se le recuerda hacer seguimiento
     const days = daysSinceApplied(app);
     if (days < 7 || days >= 14) continue;
 

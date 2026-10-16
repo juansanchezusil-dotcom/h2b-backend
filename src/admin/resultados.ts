@@ -11,7 +11,7 @@ export interface ResultadosInput {
   userIdByEmail: Map<string, string>;
   statusCounts: Map<string, Record<string, number>>;
   // postulaciones de todos (para ver qué puestos se buscan y cuáles tienen respuesta)
-  applications: { user_id: string | null; job_title: string | null; status: string }[];
+  applications: { user_id: string | null; job_title: string | null; status: string; reply_type?: string | null }[];
   leads: { email: string; unsubscribed_at: string | null; reminder_sent_at: string | null; skip_reminder: boolean | null }[];
   accesoEmails: Set<string>; // correos con acceso (activo o no), para saber qué contactos del Mapa se volvieron miembros
 }
@@ -25,6 +25,8 @@ export interface Resultados {
   porVencer: number;
   vencidos: number;
   puestos: { puesto: string; postulaciones: number; respuestas: number }[];
+  // Respuestas de empleadores que los miembros registraron en sus tarjetas. Es un mínimo: solo cuentan las que marcaron.
+  respuestasEmpleador: { postuladas: number; conRespuesta: number; masDatos: number; entrevista: number; rechazo: number; otra: number };
   mapa: { total: number; recordatorio: number; deBaja: number; excluidos: number; sonMiembros: number };
 }
 
@@ -71,10 +73,21 @@ export function computeResultados(input: ResultadosInput): Resultados {
     const key = norm(a.job_title);
     const row = byRole.get(key) || { puesto: a.job_title.trim(), postulaciones: 0, respuestas: 0 };
     row.postulaciones++;
-    if (['entrevista', 'aceptado', 'rechazada'].includes(a.status)) row.respuestas++;
+    if (['entrevista', 'aceptado', 'rechazada'].includes(a.status) || a.reply_type) row.respuestas++;
     byRole.set(key, row);
   }
   const puestos = [...byRole.values()].sort((a, b) => b.postulaciones - a.postulaciones).slice(0, 8);
+
+  const postuladas = input.applications.filter((a) => POSTED.includes(a.status));
+  const replies = input.applications.filter((a) => a.reply_type);
+  const respuestasEmpleador = {
+    postuladas: postuladas.length,
+    conRespuesta: replies.length,
+    masDatos: replies.filter((a) => a.reply_type === 'mas_datos').length,
+    entrevista: replies.filter((a) => a.reply_type === 'entrevista').length,
+    rechazo: replies.filter((a) => a.reply_type === 'rechazo').length,
+    otra: replies.filter((a) => a.reply_type === 'otra').length,
+  };
 
   const vigentes = miembros.filter((m) => m.diasParaVencer === null || m.diasParaVencer >= 0).length;
   const mapa = {
@@ -94,6 +107,7 @@ export function computeResultados(input: ResultadosInput): Resultados {
     porVencer: miembros.filter((m) => m.porVencer).length,
     vencidos: miembros.length - vigentes,
     puestos,
+    respuestasEmpleador,
     mapa,
   };
 }

@@ -20,8 +20,11 @@ export async function GET(request: Request) {
     const userIdByEmail = new Map<string, string>();
     for (const [email, u] of input.users) userIdByEmail.set(email, u.id);
 
-    const [appsRes, leadsRes, accesosRes] = await Promise.all([
-      supabase.from('applications').select('user_id, job_title, status').limit(20000),
+    // reply_type existe después de aplicar la migración employer_reply; sin ella se lee igual, sin esas cifras
+    type AppRow = { user_id: string | null; job_title: string | null; status: string; reply_type?: string | null };
+    let appsRes: { data: AppRow[] | null; error: unknown } = await supabase.from('applications').select('user_id, job_title, status, reply_type').limit(20000);
+    if (appsRes.error) appsRes = await supabase.from('applications').select('user_id, job_title, status').limit(20000);
+    const [leadsRes, accesosRes] = await Promise.all([
       supabase.from('map_leads').select('email, unsubscribed_at, reminder_sent_at, skip_reminder').limit(5000),
       supabase.from('accesos').select('email').limit(5000),
     ]);
