@@ -53,7 +53,7 @@ export async function POST(request: Request) {
       model: 'gemini-3.6-flash',
       contents: [{ role: 'user', parts: [{ text: buildCoverLetterPrompt({ profile, job }) }] }],
       config: { responseMimeType: 'application/json' },
-    });
+    }, { tier: 'quality' });
 
     let parsed: any;
     try {
