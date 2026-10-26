@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
 import { generateTextWithFallback, isTransientGeminiError } from '../../../src/ai/callGemini';
 import { allowRequest } from '../../../src/auth/rateLimit';
+import { adminClient } from '../../../src/admin/auth';
 
 // Detector de estafas de la página web pública (juanteavisa.com/detector-estafas-h2b), sin cuenta.
 // La app usa /api/analyze-scam-image (con sesión y membresía); esta ruta es solo para la web.
@@ -9,6 +10,28 @@ import { allowRequest } from '../../../src/auth/rateLimit';
 
 // Análisis por IP y por día (UTC)
 const DAILY_LIMIT = 5;
+// Análisis por día (UTC) sumando a todos: tope de gasto si la página se hace viral o alguien abusa
+const TOTAL_DAILY_LIMIT = 300;
+
+// Mismo contador que allowRequest, pero con una sola clave para todos. Si el contador falla no se bloquea a nadie.
+async function allowTotal(): Promise<boolean> {
+  try {
+    const { data, error } = await adminClient().rpc('consume_rate_limit', {
+      p_bucket: 'detector_web_total',
+      p_key: 'total',
+      p_window_seconds: 86400,
+      p_limit: TOTAL_DAILY_LIMIT,
+    });
+    if (error) {
+      console.error('consume_rate_limit (total) falló, se deja pasar la llamada:', error.message);
+      return true;
+    }
+    return data !== false;
+  } catch (err) {
+    console.error('Error en el tope total del detector, se deja pasar la llamada:', err);
+    return true;
+  }
+}
 
 function corsHeaders(origin: string | null) {
   return {
@@ -31,6 +54,13 @@ export async function POST(request: Request) {
     if (!(await allowRequest(request, 'detector_web', DAILY_LIMIT, 86400))) {
       return NextResponse.json(
         { errorCode: 'DAILY_LIMIT', error: 'Llegaste al límite de análisis gratis por hoy. Intenta de nuevo mañana.' },
+        { status: 429, headers }
+      );
+    }
+    // Después del tope por IP, para que alguien ya bloqueado no gaste el cupo de todos
+    if (!(await allowTotal())) {
+      return NextResponse.json(
+        { errorCode: 'GLOBAL_LIMIT', error: 'El detector llegó a su límite de análisis de hoy. Vuelve mañana.' },
         { status: 429, headers }
       );
     }
