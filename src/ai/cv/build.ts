@@ -104,7 +104,7 @@ export function buildVerifiedCv(profile: CandidateProfile, model: any): { cv: Bu
     ];
   });
 
-  const sentences = clip(model?.summary, 700).split(/(?<=[.!?])\s+/).filter(Boolean);
+  const sentences = clip(model?.summary, 900).split(/(?<=[.!?])\s+/).filter(Boolean);
   const keptSentences = sentences.filter((s) => numbersOk(s) && (anyoneLeads || !LEADERSHIP.test(s)));
   removed += sentences.length - keptSentences.length;
 
