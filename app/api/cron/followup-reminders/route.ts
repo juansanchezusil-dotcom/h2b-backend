@@ -5,6 +5,7 @@ import { Resend } from 'resend';
 import { runEngagement } from '../../../../src/email/engagement';
 import { runMapaSequence } from '../../../../src/email/mapaSequence';
 import { runJobAlerts } from '../../../../src/email/jobAlerts';
+import { runPush } from '../../../../src/push/runPush';
 import { isCronAuthorized } from '../../../../src/auth/cronAuth';
 
 export async function GET(request: Request) {
@@ -276,9 +277,19 @@ export async function GET(request: Request) {
     jobAlerts = { error: 'falló, ver los registros' };
   }
 
+  // Avisos push en el celular (solo quien los activó): ofertas nuevas de su puesto y seguimientos pendientes
+  let push: unknown = null;
+  try {
+    push = await runPush({ supabase, now: Date.now() });
+  } catch (err) {
+    console.error('Error en los avisos push:', err);
+    push = { error: 'falló, ver los registros' };
+  }
+
   return NextResponse.json({
     message: 'Recordatorios procesados',
     jobAlerts,
+    push,
     mapaSequence,
     promoted7,
     reminders14,
