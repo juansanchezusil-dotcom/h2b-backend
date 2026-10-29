@@ -93,7 +93,7 @@ export async function runPush(opts: { supabase: SupabaseClient; now: number }): 
         await deliver(userId, 'ofertas', dayKey(now), {
           title: matches.length === 1 ? '🆕 1 oferta nueva de tu puesto' : `🆕 ${matches.length} ofertas nuevas de tu puesto`,
           body: `${first.title} en ${first.employer_name}${more > 0 ? ` y ${more} más` : ''}. Postula antes que el resto.`,
-          url: '/?tab=jobs',
+          url: '/?tab=jobs&from=push&kind=ofertas',
           tag: 'ofertas',
         });
       }
@@ -104,7 +104,7 @@ export async function runPush(opts: { supabase: SupabaseClient; now: number }): 
       await deliver(userId, 'seguimientos', weekKey(now), {
         title: pending.length === 1 ? '📅 Tienes 1 seguimiento pendiente' : `📅 Tienes ${pending.length} seguimientos pendientes`,
         body: `${pending[0]}${pending.length > 1 ? ` y ${pending.length - 1} más` : ''} no ha respondido. Escríbeles para reconfirmar tu interés.`,
-        url: '/?tab=crm',
+        url: '/?tab=crm&from=push&kind=seguimientos',
         tag: 'seguimientos',
       });
     }

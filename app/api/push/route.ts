@@ -6,7 +6,7 @@ import { pushConfigured } from '../../../src/push/webPush';
 function corsHeaders(origin: string | null) {
   return {
     'Access-Control-Allow-Origin': origin || '*',
-    'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
   };
 }
@@ -88,6 +88,27 @@ export async function DELETE(request: Request) {
   if (error) {
     console.error('No se pudo borrar la suscripción push:', error);
     return NextResponse.json({ error: 'No pudimos apagar los avisos.' }, { status: 500, headers });
+  }
+  return NextResponse.json({ ok: true }, { headers });
+}
+
+// La persona abrió la app tocando un aviso: se anota (como mucho una vez al día por tipo) para medir si sirven
+export async function PATCH(request: Request) {
+  const headers = corsHeaders(request.headers.get('origin'));
+  const session = await sessionUser(request);
+  if (!session) return NextResponse.json({ ok: false }, { status: 401, headers });
+
+  const body = await request.json().catch(() => ({}));
+  const kind = body.kind === 'ofertas' || body.kind === 'seguimientos' ? body.kind : null;
+  if (!kind) return NextResponse.json({ ok: false }, { status: 400, headers });
+
+  const { error } = await session.supabase
+    .from('push_log')
+    .insert({ user_id: session.user.id, kind: `abierto:${kind}`, dedupe_key: new Date().toISOString().slice(0, 10) });
+  // 23505 = ya se anotó hoy
+  if (error && error.code !== '23505') {
+    console.error('No se pudo anotar la apertura del aviso:', error.message);
+    return NextResponse.json({ ok: false }, { status: 500, headers });
   }
   return NextResponse.json({ ok: true }, { headers });
 }

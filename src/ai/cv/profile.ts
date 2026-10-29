@@ -117,10 +117,22 @@ export function computeGaps(p: CandidateProfile): Gap[] {
   if (!p.targetRole) gaps.push({ key: 'targetRole', level: 'critical', label: 'El puesto al que apuntas' });
   const complete = p.experiences.some((e) => e.title && e.tasks.length > 0 && (e.dates || e.duration));
   if (!complete) {
-    gaps.push({ key: 'experience', level: 'critical', label: 'Una experiencia con puesto, tareas y tiempo' });
+    // Si ya hay una experiencia casi lista, se nombra la pieza que le falta (si no, el modelo pregunta otras cosas
+    // y la entrevista nunca llega a "lista": pasó con quien solo tiene experiencia en casa, sin fechas)
+    const near = p.experiences.find((e) => e.title && e.tasks.length > 0);
+    gaps.push(
+      near
+        ? { key: 'experience_time', level: 'critical', label: `Cuánto tiempo o desde cuándo hace "${near.title}" (aproximado vale, ej. "unos 3 años")` }
+        : { key: 'experience', level: 'critical', label: 'Una experiencia con puesto, tareas y tiempo' }
+    );
   }
-  if (!p.route) gaps.push({ key: 'route', level: 'critical', label: 'Tipo de experiencia (se define sola al conversar)' });
-  if (!p.englishLevel) gaps.push({ key: 'englishLevel', level: 'important', label: 'Tu nivel de inglés' });
+  // La ruta la decide el modelo, no la persona: si queda sin definir no bloquea (al generar se usa B, la prudente).
+  // Como crítica trababa la entrevista cuando el caso era dudoso (no sabía si tenía contrato).
+  if (!p.route) gaps.push({ key: 'route', level: 'important', label: 'Tipo de experiencia (se define sola al conversar)' });
+  // Un CV sin forma de contactar a la persona no sirve para postular
+  if (!p.phone && !p.email) gaps.push({ key: 'contact', level: 'critical', label: 'Un teléfono (WhatsApp) o correo para que el empleador te contacte' });
+  // El empleador mira el inglés y el CV lo declara: sin este dato las recomendaciones terminaban pidiéndolo después
+  if (!p.englishLevel) gaps.push({ key: 'englishLevel', level: 'critical', label: 'Tu nivel de inglés (nada, básico, intermedio o avanzado)' });
   if (!p.phone) gaps.push({ key: 'phone', level: 'important', label: 'Un teléfono de contacto' });
   if (!p.city) gaps.push({ key: 'city', level: 'important', label: 'Tu ciudad y país' });
   if (!p.experiences.some((e) => e.tools.length > 0)) {

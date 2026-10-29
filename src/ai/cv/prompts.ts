@@ -68,7 +68,7 @@ CÓMO PROFUNDIZAR:
 - Experiencia informal o familiar -> pregunta qué hacía personalmente, desde cuándo y con qué frecuencia.
 - Para tareas importantes pide un ejemplo concreto (qué pasó, qué hizo, qué resultó) sin inducir la respuesta.
 
-NIVEL REAL: para cada experiencia importante averigua el nivel con preguntas naturales y guárdalo en "autonomy": "observo" (solo lo vio hacer), "ayudaba" (ayudó a otra persona a hacerlo), "supervisado" (lo hizo él o ella, con alguien revisando o guiando), "solo" (lo hace sin supervisión) o "ensena" (lo hace solo y además enseña o supervisa a otros). Si nunca lo hizo, no lo guardes como experiencia. Nunca subas el nivel que la persona dijo. Si supervisaba o entrenaba a alguien, guárdalo en "supervision".
+NIVEL REAL: para cada experiencia importante averigua el nivel con preguntas naturales y guárdalo en "autonomy": "observo" (solo lo vio hacer), "ayudaba" (ayudó a otra persona a hacerlo), "supervisado" (lo hizo él o ella, con alguien revisando o guiando), "solo" (lo hace sin supervisión) o "ensena" (lo hace solo y además enseña o supervisa a otros). Si nunca lo hizo, no lo guardes como experiencia. Nunca subas el nivel que la persona dijo. Si supervisaba o entrenaba a alguien, guárdalo en "supervision" (a quién y cuántos). Si no supervisaba a nadie, deja "supervision" vacío: ahí NUNCA va quién lo guiaba a él o ella.
 
 LÍMITES: antes de cerrar un oficio, si encaja, pregunta qué NO sabe hacer o solo observó, y guárdalo en "notDone". Eso nunca irá al CV.
 
@@ -229,7 +229,8 @@ REGLAS DE REDACCIÓN:
 - No uses números, porcentajes ni cantidades que no estén en los datos.
 - El summary ocupa de 5 a 6 líneas en el CV (4-5 oraciones, unas 70-95 palabras): quién es, qué sabe hacer, qué experiencia tiene (entornos, volumen o empleadores que la persona nombró), qué la respalda (formación, estándares o responsabilidades que dio) y qué puesto busca. Específico, sin frases genéricas ("passionate", "dream job"). Sin cifras que no estén en los datos. Si los datos no alcanzan para llenar 5 líneas, escribe menos: nunca rellenes ni inventes para llegar al largo.
 - Años de experiencia: solo si salen de fechas o duraciones que la persona dio. Si no, no los menciones. Con ruta C no uses "experienced professional", "seasoned" ni nada que simule trayectoria profesional: habla de habilidades prácticas, formación y del puesto que busca.
-- "title_en" y "dates_en" son la traducción fiel del cargo y de las fechas del usuario; no cambies su nivel ni sus fechas.
+- "title_en" y "dates_en" son la traducción fiel AL INGLÉS del cargo y de las fechas del usuario (ej. "desde que era niño" -> "Since childhood (approx.)"); no cambies su nivel ni sus fechas. Nada del CV queda en español.
+- El CV va en tercera persona implícita, sin pronombres: nunca "I", "my", "me" ni "mostly on my own" copiado del chat.
 - Títulos honestos: el título refleja la función real, no el oficio al que se parece. Si ayudaba a un electricista, NO es "Electrician" (usa "Electrician's Helper" solo si lo dijo así). Si hacía reparaciones en su casa, NO es "Maintenance Technician". Si el título original no tiene traducción directa, describe la actividad (ej. "Family Farm Helper") en vez de asignar un título dudoso.
 - Experiencia informal, familiar o por cuenta propia: descríbela como lo que fue ("Family business", "Self-employed", "Family farm") solo si la persona lo dijo. No inventes una empresa, un puesto formal ni un período de empleo.
 - skills: hasta 10, solo habilidades que nombren una herramienta o tarea que aparece literalmente en los datos, o que la persona haya mencionado (nada de "Workplace Safety" o "Time Management" si no lo dijo). Mejor pocas y reales. education/certifications: traduce lo que dio, sin agregar.
@@ -242,11 +243,11 @@ Responde ÚNICAMENTE con un objeto JSON con estas claves:
 - "estrategia_es": 1-2 líneas en español sobre qué se destacó y por qué.
 - "summary": string en inglés.
 - "headline_en": el puesto objetivo en inglés, de 2 a 5 palabras y solo el puesto (ej. "Landscape Laborer"), sin cifras.
-- "availability_en": traducción fiel y breve al inglés de su disponibilidad (los datos de arriba), sin agregar nada que no haya dicho; "" si no la dio.
+- "availability_en": traducción fiel y breve al inglés de su disponibilidad (los datos de arriba), sin agregar nada que no haya dicho; "" si no la dio. Solo lo concreto que confirmó (meses, temporada, flexibilidad de turnos o de estado); omite dudas, comentarios y el pasaporte (el sistema lo agrega aparte).
 - "experiences": array con un objeto por experiencia: { "id": "e1", "title_en": string, "dates_en": string, "bullets": [{ "text": string, "refs": ["e1.t1"] }] }
 - "skills": array de strings en inglés.
 - "education": array de strings en inglés. "certifications": array de strings en inglés.
-- "recomendaciones_es": array de 2 a 4 strings en español con información real que fortalecería la candidatura (fechas exactas, números reales, certificaciones, etc.).${
+- "recomendaciones_es": array de 2 a 4 strings en español con información real que fortalecería la candidatura (fechas exactas, números reales, certificaciones, etc.). Nunca pidas algo que ya está en DATOS DEL CANDIDATO (por ejemplo, el nivel de inglés o la disponibilidad si ya los dio).${
     job
       ? `
 - "requirements": hasta 8 requisitos concretos que se desprenden de las funciones de la oferta (herramientas, tareas, habilidades, idioma, exigencias físicas), cada uno como { "requirement_es": string, "status": "MATCH" | "TRANSFERABLE" | "MISSING" | "UNKNOWN", "refs": ["e1.t1"] }.

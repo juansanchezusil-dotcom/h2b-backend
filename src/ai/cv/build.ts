@@ -44,14 +44,18 @@ function overstates(text: string, level: string, canLead: boolean): boolean {
   return false;
 }
 
-const ENGLISH_LEVELS: Record<string, string> = {
-  basico: 'Basic', 'básico': 'Basic', intermedio: 'Intermediate', avanzado: 'Advanced',
-  'avanzado / fluido': 'Advanced', fluido: 'Fluent', nativo: 'Native',
-};
-
+// La persona describe su inglés con sus palabras ("básico, de la escuela", "nada", "me defiendo"):
+// se toma el nivel por palabra clave. Si no habla inglés o no se entiende el nivel, la línea no va al CV
+// (nunca se copia el texto en español).
 function englishLevelLabel(level: string): string {
-  const key = level.trim().toLowerCase();
-  return ENGLISH_LEVELS[key] || level.trim();
+  const t = level.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  if (/\b(nada|ninguno|ninguna|no hablo|no habla|cero|none)\b/.test(t)) return '';
+  if (/\b(nativo|native|bilingue)\b/.test(t)) return 'Native';
+  if (/\b(fluido|fluent)\b/.test(t)) return 'Fluent';
+  if (/\b(avanzado|advanced)\b/.test(t)) return 'Advanced';
+  if (/\b(intermedio|intermediate)\b/.test(t)) return 'Intermediate';
+  if (/\b(basico|basic|poco|elemental)\b/.test(t)) return 'Basic';
+  return '';
 }
 
 // Arma el CV a partir de lo que devolvió el modelo, pero SOLO con lo que se puede respaldar:
@@ -114,7 +118,8 @@ export function buildVerifiedCv(profile: CandidateProfile, model: any): { cv: Bu
   // Como en la plantilla: Spanish, English, otros. El español nativo se da por hecho porque toda
   // la entrevista se hace en español; el inglés sale solo con el nivel que la persona declaró.
   const languages = ['Spanish: Native'];
-  if (profile.englishLevel) languages.push(`English: ${englishLevelLabel(profile.englishLevel)}`);
+  const english = englishLevelLabel(profile.englishLevel || '');
+  if (english) languages.push(`English: ${english}`);
   languages.push(...profile.languages.filter((l) => !/english|ingl[eé]s|spanish|espa[ñn]ol/i.test(l)));
 
   const headlineEn = clip(model?.headline_en, 60);
