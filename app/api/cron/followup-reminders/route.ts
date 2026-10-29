@@ -6,6 +6,7 @@ import { runEngagement } from '../../../../src/email/engagement';
 import { runMapaSequence } from '../../../../src/email/mapaSequence';
 import { runJobAlerts } from '../../../../src/email/jobAlerts';
 import { runPush } from '../../../../src/push/runPush';
+import { runErrorDigest } from '../../../../src/errors/errorDigest';
 import { isCronAuthorized } from '../../../../src/auth/cronAuth';
 
 export async function GET(request: Request) {
@@ -286,10 +287,20 @@ export async function GET(request: Request) {
     push = { error: 'falló, ver los registros' };
   }
 
+  // Resumen de errores de la app para el administrador (solo si hubo)
+  let errorDigest: unknown = null;
+  try {
+    errorDigest = await runErrorDigest({ supabase, resend, now: Date.now() });
+  } catch (err) {
+    console.error('Error en el resumen de errores de la app:', err);
+    errorDigest = { error: 'falló, ver los registros' };
+  }
+
   return NextResponse.json({
     message: 'Recordatorios procesados',
     jobAlerts,
     push,
+    errorDigest,
     mapaSequence,
     promoted7,
     reminders14,
