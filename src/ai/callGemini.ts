@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { GoogleGenAI } from '@google/genai';
+import { errMsg } from '../utils/errors';
 
 // Los asistentes de IA (CV, carta, correo, simulador, detector de estafas) llaman a Claude y, si falla, a Gemini.
 // Gemini a veces responde 503 "high demand" o 429 de cupo, errores que casi siempre se resuelven solos
@@ -31,9 +32,9 @@ export async function generateContentWithRetry(
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
       return await ai.models.generateContent(params);
-    } catch (err: any) {
+    } catch (err) {
       lastError = err;
-      const message = err?.message || String(err);
+      const message = errMsg(err) || String(err);
       if (attempt === retries || !isTransientGeminiError(message)) throw err;
       console.warn(`⚠️ Gemini saturado (intento ${attempt + 1}/${retries + 1}), reintentando en ${delayMs}ms:`, message);
       await new Promise((r) => setTimeout(r, delayMs));
@@ -109,8 +110,8 @@ export async function generateTextWithFallback(
   if (process.env.ANTHROPIC_API_KEY) {
     try {
       return await callClaude(params.contents, tier);
-    } catch (err: any) {
-      console.warn('⚠️ Claude falló, respondiendo con Gemini:', err?.message || err);
+    } catch (err) {
+      console.warn('⚠️ Claude falló, respondiendo con Gemini:', errMsg(err) || err);
     }
   }
   const response = await generateContentWithRetry(ai, params);

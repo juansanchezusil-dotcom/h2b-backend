@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import admZip from 'adm-zip';
-import { supabase } from '../db/supabase';
+import { supabase } from '../db/supabase';
+import { errMsg } from '../utils/errors';
 
 interface JobRecord {
   title: string;
@@ -24,7 +25,7 @@ export async function scrapeSeasonalJobs(): Promise<JobRecord[]> {
 
   try {
     let response: Response | null = null;
-    let dateToTry = new Date();
+    const dateToTry = new Date();
 
     // Recorre los últimos 7 días intentando descargar el ZIP disponible más reciente
     for (let i = 0; i < 7; i++) {
@@ -184,8 +185,8 @@ export async function scrapeSeasonalJobs(): Promise<JobRecord[]> {
     console.log(`✅ ¡Sincronización completada!`);
     return jobsToSave;
 
-  } catch (err: any) {
-    console.error('❌ Error durante la ejecución:', err.message || err);
+  } catch (err) {
+    console.error('❌ Error durante la ejecución:', errMsg(err) || err);
     return [];
   }
 }

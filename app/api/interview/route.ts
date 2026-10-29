@@ -15,6 +15,7 @@ import {
   type Module,
   type Turn,
 } from '../../../src/ai/interviewSim';
+import { errMsg } from '../../../src/utils/errors';
 
 function corsHeaders(origin: string | null) {
   return {
@@ -66,7 +67,7 @@ export async function POST(request: Request) {
     };
 
     if (modern) {
-      const module: Module = body.module === 'consular' ? 'consular' : 'employer';
+      const simModule: Module = body.module === 'consular' ? 'consular' : 'employer';
       const c = body.candidate && typeof body.candidate === 'object' ? body.candidate : {};
       const candidate: CandidateInfo = {
         role: clip(c.role, 120),
@@ -82,7 +83,7 @@ export async function POST(request: Request) {
         .slice(0, 16);
 
       if (mode === 'next') {
-        const parsed = await ask(buildNextPrompt({ module, candidate, turns, job }));
+        const parsed = await ask(buildNextPrompt({ module: simModule, candidate, turns, job }));
         const questionEn = clip(parsed.question_en, 500);
         if (!questionEn) return NextResponse.json({ errorCode: 'GENERIC', error: 'No se pudo preparar la siguiente pregunta. Intenta de nuevo.' }, { status: 502, headers });
         return NextResponse.json(
@@ -101,7 +102,7 @@ export async function POST(request: Request) {
       if (mode === 'help') {
         const questionEn = clip(body.questionEn, 500);
         if (!questionEn) return NextResponse.json({ error: 'Falta la pregunta.' }, { status: 400, headers });
-        const parsed = await ask(buildHelpPrompt({ module, candidate, questionEn, job }));
+        const parsed = await ask(buildHelpPrompt({ module: simModule, candidate, questionEn, job }));
         return NextResponse.json(
           {
             meaning_es: clip(parsed.meaning_es, 600),
@@ -117,10 +118,10 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Responde al menos una pregunta para recibir el informe.' }, { status: 400, headers });
       }
       const hasDocs = candidate.cvText.length >= 30;
-      const parsed = await ask(buildReportPrompt({ module, candidate, turns, hasDocs, job }));
+      const parsed = await ask(buildReportPrompt({ module: simModule, candidate, turns, hasDocs, job }));
       const list = (v: unknown, n: number, len = 400) => (Array.isArray(v) ? v.map((s) => clip(s, len)).filter(Boolean).slice(0, n) : []);
       const report = {
-        module,
+        module: simModule,
         level_reached: [1, 2, 3].includes(Number(parsed.level_reached)) ? Number(parsed.level_reached) : 1,
         score: summarizeScores(parsed.scores, hasDocs),
         strengths_es: list(parsed.strengths_es, 4),
@@ -198,9 +199,9 @@ Responde ÚNICAMENTE con un objeto JSON con las claves:
     }
 
     return NextResponse.json({ error: 'Modo no reconocido' }, { status: 400, headers });
-  } catch (err: any) {
+  } catch (err) {
     console.error('Error en simulador de entrevista con Gemini:', err);
-    const msg = err.message || '';
+    const msg = errMsg(err) || '';
 
     if (isTransientGeminiError(msg)) {
       return NextResponse.json(

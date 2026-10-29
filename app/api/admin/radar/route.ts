@@ -16,7 +16,7 @@ export async function GET(request: Request) {
     const input = await loadRadarInput(adminClient(), now);
     const { resumen, miembros } = computeRadar(input);
     return NextResponse.json({ config: RADAR, resumen, miembros, generado: new Date(now).toISOString() });
-  } catch (err: any) {
+  } catch (err) {
     console.error('Error calculando el radar:', err);
     return NextResponse.json({ error: 'No se pudo calcular el radar.' }, { status: 500 });
   }

@@ -56,7 +56,7 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({ message: "Evento recibido pero sin accion requerida" }, { status: 200 });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Error en Webhook de Pago:", error);
     return NextResponse.json({ error: "No se pudo procesar el evento." }, { status: 500 });
   }

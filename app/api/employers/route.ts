@@ -36,7 +36,7 @@ export async function GET(request: Request) {
     }));
 
     return NextResponse.json(formattedCompanies, { status: 200 });
-  } catch (err: any) {
+  } catch (err) {
     console.error('Error en /api/employers:', err);
     return NextResponse.json({ error: 'Error interno' }, { status: 500 });
   }

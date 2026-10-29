@@ -109,7 +109,7 @@ export function matchJob(job: Job, byKey: Map<string, Sponsor[]>, truncated: Spo
   const jobKeys = nameVariants(job.employer_name).map(key).filter((k) => k.length >= MIN_KEY_LENGTH);
 
   // 1) Mismo nombre (sin formas jurídicas), en cualquiera de sus variantes
-  let candidates = new Map<number, Sponsor>();
+  const candidates = new Map<number, Sponsor>();
   for (const k of jobKeys) for (const s of byKey.get(k) || []) candidates.set(s.id, s);
   let method: 'nombre' | 'nombre_cortado' = 'nombre';
 

@@ -21,7 +21,7 @@ export async function GET(request: Request) {
       recent: summary.recent ?? [],
       rules: ENGAGEMENT,
     });
-  } catch (err: any) {
+  } catch (err) {
     console.error('Error leyendo el estado de los correos:', err);
     return NextResponse.json({ error: 'No se pudo cargar el estado de los correos.' }, { status: 500 });
   }
@@ -44,7 +44,7 @@ export async function POST(request: Request) {
   try {
     const result = await sendSampleEmails(new Resend(process.env.RESEND_API_KEY), admin);
     return NextResponse.json({ ...result, to: admin });
-  } catch (err: any) {
+  } catch (err) {
     console.error('Error enviando los correos de ejemplo:', err);
     return NextResponse.json({ error: 'No se pudieron enviar los ejemplos.' }, { status: 500 });
   }

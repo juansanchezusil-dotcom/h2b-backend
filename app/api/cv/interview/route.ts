@@ -4,6 +4,7 @@ import { guardAiRequest, CV_TURN_DAILY_LIMIT } from '../../../../src/ai/guard';
 import { generateTextWithFallback, isTransientGeminiError } from '../../../../src/ai/callGemini';
 import { buildInterviewPrompt, type InterviewTurn } from '../../../../src/ai/cv/prompts';
 import { computeGaps, mergeProfile, sanitizeProfile } from '../../../../src/ai/cv/profile';
+import { errMsg } from '../../../../src/utils/errors';
 
 function corsHeaders(origin: string | null) {
   return {
@@ -103,9 +104,9 @@ export async function POST(request: Request) {
       },
       { status: 200, headers }
     );
-  } catch (err: any) {
+  } catch (err) {
     console.error('Error en la entrevista del CV:', err);
-    if (isTransientGeminiError(err?.message || '')) {
+    if (isTransientGeminiError(errMsg(err) || '')) {
       return NextResponse.json(
         { errorCode: 'RATE_LIMIT', error: 'Hemos recibido mucho tráfico en este momento. Intenta de nuevo en unos minutos.' },
         { status: 429, headers }

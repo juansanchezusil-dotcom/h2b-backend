@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Mail, Copy, ExternalLink, Sparkles, Check, RefreshCw } from 'lucide-react';
+import { Mail, Copy, ExternalLink, Sparkles, Check } from 'lucide-react';
 
 interface EmailAssistantProps {
   initialJobTitle?: string;
@@ -119,7 +119,7 @@ ${candidateName}`;
             ].map((type) => (
               <button
                 key={type.id}
-                onClick={() => setEmailType(type.id as any)}
+                onClick={() => setEmailType(type.id as typeof emailType)}
                 className={`w-full text-left px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
                   emailType === type.id
                     ? 'bg-blue-600 text-white shadow-sm'

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
 import { guardAiRequest } from '../../../../src/ai/guard';
 import { generateTextWithFallback, isTransientGeminiError } from '../../../../src/ai/callGemini';
+import { errMsg } from '../../../../src/utils/errors';
 
 function corsHeaders(origin: string | null) {
   return {
@@ -134,9 +135,9 @@ Responde ÚNICAMENTE con un objeto JSON con estas claves:
 
     const parsed = JSON.parse(responseText || '{}');
     return NextResponse.json(parsed, { status: 200, headers });
-  } catch (err: any) {
+  } catch (err) {
     console.error('Error generando correo con Gemini:', err);
-    const msg = err.message || '';
+    const msg = errMsg(err) || '';
 
     if (isTransientGeminiError(msg)) {
       return NextResponse.json(

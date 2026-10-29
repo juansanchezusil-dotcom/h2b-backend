@@ -5,7 +5,8 @@ import { generateTextWithFallback, isTransientGeminiError } from '../../../../sr
 import { buildGeneratePrompt } from '../../../../src/ai/cv/prompts';
 import { computeGaps, profileToPlainText, sanitizeProfile } from '../../../../src/ai/cv/profile';
 import { buildVerifiedCv, cvToText, verifyRequirements } from '../../../../src/ai/cv/build';
-import { englishWarning } from '../../../../src/ai/cv/industryBanks';
+import { englishWarning } from '../../../../src/ai/cv/industryBanks';
+import { errMsg } from '../../../../src/utils/errors';
 
 function corsHeaders(origin: string | null) {
   return {
@@ -88,9 +89,9 @@ export async function POST(request: Request) {
       },
       { status: 200, headers }
     );
-  } catch (err: any) {
+  } catch (err) {
     console.error('Error generando el CV:', err);
-    if (isTransientGeminiError(err?.message || '')) {
+    if (isTransientGeminiError(errMsg(err) || '')) {
       return NextResponse.json(
         { errorCode: 'RATE_LIMIT', error: 'Hemos recibido mucho tráfico en este momento. Intenta de nuevo en unos minutos.' },
         { status: 429, headers }

@@ -39,7 +39,7 @@ export async function GET(request: Request) {
       accesoEmails: new Set((accesosRes.data || []).map((a: { email: string }) => a.email.trim().toLowerCase())),
     });
     return NextResponse.json({ ...resultados, generado: new Date(now).toISOString() });
-  } catch (err: any) {
+  } catch (err) {
     console.error('Error calculando los resultados:', err);
     return NextResponse.json({ error: 'No se pudieron calcular los resultados.' }, { status: 500 });
   }

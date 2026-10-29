@@ -1,5 +1,6 @@
 import * as cheerio from 'cheerio';
 import { supabase } from '../db/supabase';
+import { errMsg } from '../utils/errors';
 
 // Scrapea los resultados de búsqueda "h2b" en CareerOneStop (portal de empleo
 // del DOL) y guarda las ofertas nuevas en `jobs` con source: 'CareerOneStop'.
@@ -92,8 +93,8 @@ async function fetchResultsPage(curPage: number): Promise<string> {
       });
       lastStatus = res.status;
       if (res.ok) return await res.text();
-    } catch (err: any) {
-      lastStatus = err.name === 'AbortError' ? 'sin respuesta en 20s' : err.message || 'error de red';
+    } catch (err) {
+      lastStatus = (err instanceof Error && err.name === 'AbortError') ? 'sin respuesta en 20s' : errMsg(err) || 'error de red';
     } finally {
       clearTimeout(timeout);
     }
@@ -110,8 +111,8 @@ async function scrapeAllPages(): Promise<RawRow[]> {
     let html: string;
     try {
       html = await fetchResultsPage(curPage);
-    } catch (err: any) {
-      console.warn(`⚠️ CareerOneStop: ${err.message}, se detiene aquí.`);
+    } catch (err) {
+      console.warn(`⚠️ CareerOneStop: ${errMsg(err)}, se detiene aquí.`);
       break;
     }
 
@@ -160,11 +161,11 @@ export async function scrapeCareerOneStop(): Promise<number> {
   let rawRows: RawRow[];
   try {
     rawRows = await scrapeAllPages();
-  } catch (err: any) {
+  } catch (err) {
     // El sitio puede bloquear el scraping, caerse, o cambiar su HTML.
     // No propaga el error: las ofertas de CareerOneStop de días anteriores
     // se quedan como están, y el cron del DOL sigue su curso.
-    console.error('❌ Error scrapeando CareerOneStop:', err.message || err);
+    console.error('❌ Error scrapeando CareerOneStop:', errMsg(err) || err);
     return 0;
   }
 

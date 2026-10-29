@@ -5,6 +5,7 @@ import { generateTextWithFallback, isTransientGeminiError } from '../../../../sr
 import { buildCoverLetterPrompt } from '../../../../src/ai/cv/prompts';
 import { computeGaps, sanitizeProfile } from '../../../../src/ai/cv/profile';
 import { buildVerifiedLetter } from '../../../../src/ai/cv/build';
+import { errMsg } from '../../../../src/utils/errors';
 
 function corsHeaders(origin: string | null) {
   return {
@@ -72,9 +73,9 @@ export async function POST(request: Request) {
       { letter, notes_es: typeof parsed.notes_es === 'string' ? parsed.notes_es.slice(0, 400) : '', removed },
       { status: 200, headers }
     );
-  } catch (err: any) {
+  } catch (err) {
     console.error('Error generando la carta:', err);
-    if (isTransientGeminiError(err?.message || '')) {
+    if (isTransientGeminiError(errMsg(err) || '')) {
       return NextResponse.json(
         { errorCode: 'RATE_LIMIT', error: 'Hemos recibido mucho tráfico en este momento. Intenta de nuevo en unos minutos.' },
         { status: 429, headers }

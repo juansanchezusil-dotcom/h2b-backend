@@ -6,7 +6,7 @@ import { fetchUscisData } from "./sources/uscis.ts";
 import { fetchCareerOneStop } from "./sources/careerOneStop.ts";
 import { fetchDolRecruiters } from "./sources/dolRecruiters.ts";
 
-Deno.serve(async (req: Request): Promise<Response> => {
+Deno.serve(async (): Promise<Response> => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL") || Deno.env.get("PROJECT_URL");
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || Deno.env.get("SERVICE_ROLE_KEY");

@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
 import { generateTextWithFallback, isTransientGeminiError } from '../../../src/ai/callGemini';
 import { allowRequest } from '../../../src/auth/rateLimit';
-import { adminClient } from '../../../src/admin/auth';
+import { adminClient } from '../../../src/admin/auth';
+import { errMsg } from '../../../src/utils/errors';
 
 // Detector de estafas de la página web pública (juanteavisa.com/detector-estafas-h2b), sin cuenta.
 // La app usa /api/analyze-scam-image (con sesión y membresía); esta ruta es solo para la web.
@@ -138,10 +139,10 @@ Responde ÚNICAMENTE con un objeto JSON estricto con las claves: "nivel" ("alto"
 
     return NextResponse.json(parsed, { status: 200, headers });
 
-  } catch (err: any) {
+  } catch (err) {
     console.error('Error procesando la imagen con Gemini:', err);
 
-    const errorMessage = err.message || '';
+    const errorMessage = errMsg(err) || '';
 
     if (isTransientGeminiError(errorMessage)) {
       return NextResponse.json(

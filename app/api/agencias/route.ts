@@ -18,7 +18,7 @@ export async function GET(request: Request) {
     }
 
     return NextResponse.json(data);
-  } catch (err: any) {
+  } catch (err) {
     console.error('Error en /api/agencias:', err);
     return NextResponse.json({ error: 'Error interno' }, { status: 500 });
   }

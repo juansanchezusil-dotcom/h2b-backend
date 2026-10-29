@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
 import { guardAiRequest } from '../../../src/ai/guard';
-import { generateTextWithFallback, isTransientGeminiError } from '../../../src/ai/callGemini';
+import { generateTextWithFallback, isTransientGeminiError } from '../../../src/ai/callGemini';
+import { errMsg } from '../../../src/utils/errors';
 
 function corsHeaders(origin: string | null) {
   return {
@@ -97,10 +98,10 @@ Responde ÚNICAMENTE con un objeto JSON estricto con las claves: "nivel" ("alto"
 
     return NextResponse.json(parsed, { status: 200, headers });
 
-  } catch (err: any) {
+  } catch (err) {
     console.error('Error procesando la imagen con Gemini:', err);
 
-    const errorMessage = err.message || '';
+    const errorMessage = errMsg(err) || '';
 
     if (isTransientGeminiError(errorMessage)) {
       return NextResponse.json(
