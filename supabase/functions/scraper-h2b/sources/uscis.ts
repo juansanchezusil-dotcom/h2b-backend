@@ -13,7 +13,7 @@ export async function fetchUscisData() {
     const records = parse(text, { skipFirstRow: true });
 
     // Tomamos una muestra de los últimos registros procesados
-    return records.slice(0, 20).map((row: any) => ({
+    return records.slice(0, 20).map((row: Record<string, string | undefined>) => ({
       title: "Petición Aprobada/Procesada H-2B",
       employer_name: row[0] || row["Employer Name"] || "Empleador USCIS",
       location: row[1] ? `${row[1]}, ${row[2] || ""}` : "EE. UU.",

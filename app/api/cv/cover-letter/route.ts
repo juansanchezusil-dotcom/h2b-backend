@@ -6,6 +6,7 @@ import { buildCoverLetterPrompt } from '../../../../src/ai/cv/prompts';
 import { computeGaps, sanitizeProfile } from '../../../../src/ai/cv/profile';
 import { buildVerifiedLetter } from '../../../../src/ai/cv/build';
 import { errMsg } from '../../../../src/utils/errors';
+import { asRaw, type Raw } from '../../../../src/utils/raw';
 
 function corsHeaders(origin: string | null) {
   return {
@@ -56,9 +57,9 @@ export async function POST(request: Request) {
       config: { responseMimeType: 'application/json' },
     }, { tier: 'quality' });
 
-    let parsed: any;
+    let parsed: Raw;
     try {
-      parsed = JSON.parse(text || '{}');
+      parsed = asRaw(JSON.parse(text || '{}'));
     } catch {
       console.error('Carta: el modelo no devolvió JSON válido:', text.slice(0, 200));
       return NextResponse.json({ errorCode: 'GENERIC', error: 'No se pudo generar la carta. Intenta de nuevo.' }, { status: 502, headers });

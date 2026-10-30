@@ -1,4 +1,7 @@
-export function normalizeJob(job: any) {
+type RawJob = { title?: string; employer?: string; location?: string; startDate?: string; endDate?: string; wage?: string; url?: string };
+type RawEmployer = { employer?: string; state?: string; workersRequested?: number; workersApproved?: number; year?: string | number };
+
+export function normalizeJob(job: RawJob) {
   return {
     title: job.title || '',
     employer: job.employer || '',
@@ -11,7 +14,7 @@ export function normalizeJob(job: any) {
   };
 }
 
-export function normalizeEmployer(emp: any) {
+export function normalizeEmployer(emp: RawEmployer) {
   return {
     employer: emp.employer || '',
     state: emp.state || '',

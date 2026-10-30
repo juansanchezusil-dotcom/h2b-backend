@@ -5,8 +5,9 @@ import { generateTextWithFallback, isTransientGeminiError } from '../../../../sr
 import { buildGeneratePrompt } from '../../../../src/ai/cv/prompts';
 import { computeGaps, profileToPlainText, sanitizeProfile } from '../../../../src/ai/cv/profile';
 import { buildVerifiedCv, cvToText, verifyRequirements } from '../../../../src/ai/cv/build';
-import { englishWarning } from '../../../../src/ai/cv/industryBanks';
+import { englishWarning } from '../../../../src/ai/cv/industryBanks';
 import { errMsg } from '../../../../src/utils/errors';
+import { asRaw, type Raw } from '../../../../src/utils/raw';
 
 function corsHeaders(origin: string | null) {
   return {
@@ -59,9 +60,9 @@ export async function POST(request: Request) {
       config: { responseMimeType: 'application/json' },
     }, { tier: 'quality' });
 
-    let parsed: any;
+    let parsed: Raw;
     try {
-      parsed = JSON.parse(text || '{}');
+      parsed = asRaw(JSON.parse(text || '{}'));
     } catch {
       console.error('Generar CV: el modelo no devolvió JSON válido:', text.slice(0, 200));
       return NextResponse.json({ errorCode: 'GENERIC', error: 'No se pudo generar el CV. Intenta de nuevo.' }, { status: 502, headers });

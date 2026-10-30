@@ -32,14 +32,14 @@ export async function fetchCareerOneStop() {
 
     console.log(`CareerOneStop: ${jobsList.length} ofertas obtenidas.`);
 
-    return jobsList.map((item: any) => ({
+    return jobsList.map((item: Record<string, string | undefined>) => ({
       title: item.JobTitle || "Trabajo H-2B",
       employer_name: item.Company || "Empleador CareerOneStop",
       location: item.Location || "EE. UU.",
       source: "CareerOneStop API"
     }));
-  } catch (e: any) {
-    console.error("Error en CareerOneStop API:", e.message);
+  } catch (e) {
+    console.error("Error en CareerOneStop API:", e instanceof Error ? e.message : e);
     return [];
   }
 }

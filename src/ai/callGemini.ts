@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { GoogleGenAI } from '@google/genai';
 import { errMsg } from '../utils/errors';
+import { asArray, asRaw } from '../utils/raw';
 
 // Los asistentes de IA (CV, carta, correo, simulador, detector de estafas) llaman a Claude y, si falla, a Gemini.
 // Gemini a veces responde 503 "high demand" o 429 de cupo, errores que casi siempre se resuelven solos
@@ -28,7 +29,7 @@ export async function generateContentWithRetry(
   params: Parameters<GoogleGenAI['models']['generateContent']>[0],
   { retries = 2, delayMs = 2500 }: GenerateOptions = {}
 ) {
-  let lastError: any;
+  let lastError: unknown;
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
       return await ai.models.generateContent(params);
@@ -62,13 +63,14 @@ function getClaude(): Anthropic {
 const JSON_ONLY = 'Responde únicamente con el objeto JSON pedido: sin texto antes ni después y sin bloques de código.';
 
 // Convierte el prompt de Gemini (texto + imágenes inline) al formato de Claude.
-function toClaudeContent(contents: any): Anthropic.ContentBlockParam[] {
-  const parts: any[] = contents?.[0]?.parts || [];
+function toClaudeContent(contents: unknown): Anthropic.ContentBlockParam[] {
+  const parts = asArray(asRaw(asArray(contents)[0]).parts).map(asRaw);
   const blocks = parts.map((p): Anthropic.ContentBlockParam => {
-    if (!p.inlineData) return { type: 'text', text: p.text || '' };
-    const source = { type: 'base64' as const, media_type: p.inlineData.mimeType, data: p.inlineData.data };
+    if (!p.inlineData) return { type: 'text', text: typeof p.text === 'string' ? p.text : '' };
+    const inline = asRaw(p.inlineData);
+    const source = { type: 'base64' as const, media_type: inline.mimeType, data: inline.data };
     // Claude recibe los PDF como "document" y las fotos como "image"
-    return (p.inlineData.mimeType === 'application/pdf' ? { type: 'document', source } : { type: 'image', source }) as Anthropic.ContentBlockParam;
+    return (inline.mimeType === 'application/pdf' ? { type: 'document', source } : { type: 'image', source }) as Anthropic.ContentBlockParam;
   });
   blocks.push({ type: 'text', text: JSON_ONLY });
   return blocks;
@@ -82,7 +84,7 @@ function extractJson(text: string): string {
   return start >= 0 && end > start ? text.slice(start, end + 1) : text;
 }
 
-async function callClaude(contents: any, tier: AiTier): Promise<string> {
+async function callClaude(contents: unknown, tier: AiTier): Promise<string> {
   const { model, effort, maxTokens } = CLAUDE_MODELS[tier];
   const response = await getClaude().messages.create({
     model,

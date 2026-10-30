@@ -21,8 +21,8 @@ export async function GET(request: Request) {
     let careerOneStopCount = 0;
     try {
       careerOneStopCount = await scrapeCareerOneStop();
-    } catch (cosErr: any) {
-      console.error('⚠️ No se pudo scrapear CareerOneStop:', cosErr.message);
+    } catch (cosErr) {
+      console.error('⚠️ No se pudo scrapear CareerOneStop:', errMsg(cosErr));
     }
 
     // Vincula las ofertas (nuevas y viejas) con el historial de su empresa en USCIS.
@@ -30,8 +30,8 @@ export async function GET(request: Request) {
     let sponsorLinks = null;
     try {
       sponsorLinks = await linkJobsToSponsors({ write: true });
-    } catch (linkErr: any) {
-      console.error('⚠️ No se pudo vincular ofertas con USCIS:', linkErr.message);
+    } catch (linkErr) {
+      console.error('⚠️ No se pudo vincular ofertas con USCIS:', errMsg(linkErr));
     }
 
     // 2. Devolver respuesta exitosa (200 OK)

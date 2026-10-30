@@ -16,6 +16,7 @@ import {
   type Turn,
 } from '../../../src/ai/interviewSim';
 import { errMsg } from '../../../src/utils/errors';
+import { asArray, asRaw } from '../../../src/utils/raw';
 
 function corsHeaders(origin: string | null) {
   return {
@@ -77,8 +78,11 @@ export async function POST(request: Request) {
       };
       const j = body.job && typeof body.job === 'object' ? body.job : null;
       const job: JobInfo | null = j && clip(j.title, 120) ? { title: clip(j.title, 120), company: clip(j.company, 120), duties: clip(j.duties, 1800) } : null;
-      const turns: Turn[] = (Array.isArray(body.turns) ? body.turns : [])
-        .map((t: any) => ({ q: clip(t?.q, 400), a: clip(t?.a, 1200) }))
+      const turns: Turn[] = asArray(body.turns)
+        .map((item) => {
+          const t = asRaw(item);
+          return { q: clip(t.q, 400), a: clip(t.a, 1200) };
+        })
         .filter((t: Turn) => t.q)
         .slice(0, 16);
 
@@ -125,23 +129,24 @@ export async function POST(request: Request) {
         level_reached: [1, 2, 3].includes(Number(parsed.level_reached)) ? Number(parsed.level_reached) : 1,
         score: summarizeScores(parsed.scores, hasDocs),
         strengths_es: list(parsed.strengths_es, 4),
-        improve: (Array.isArray(parsed.improve) ? parsed.improve : []).slice(0, 5).map((i: any) => ({
-          question_en: clip(i?.question_en, 500),
-          question_es: clip(i?.question_es, 500),
-          original: clip(i?.original, 1200),
-          mejorar_es: clip(i?.mejorar_es, 600),
-          improved_en: clip(i?.improved_en, 1200),
-          improved_es: clip(i?.improved_es, 1200),
-          consejo_es: clip(i?.consejo_es, 400),
+        improve: asArray(parsed.improve).slice(0, 5).map(asRaw).map((i) => ({
+          question_en: clip(i.question_en, 500),
+          question_es: clip(i.question_es, 500),
+          original: clip(i.original, 1200),
+          mejorar_es: clip(i.mejorar_es, 600),
+          improved_en: clip(i.improved_en, 1200),
+          improved_es: clip(i.improved_es, 1200),
+          consejo_es: clip(i.consejo_es, 400),
         })),
         english_errors_es: list(parsed.english_errors_es, 5),
         not_understood_es: list(parsed.not_understood_es, 6),
         inconsistencias_es: hasDocs ? list(parsed.inconsistencias_es, 5) : [],
         priorities_es: list(parsed.priorities_es, 3),
         plan_es: list(parsed.plan_es, 5),
-        practice_questions: (Array.isArray(parsed.practice_questions) ? parsed.practice_questions : [])
+        practice_questions: asArray(parsed.practice_questions)
           .slice(0, 5)
-          .map((q: any) => ({ en: clip(q?.en, 400), es: clip(q?.es, 400) }))
+          .map(asRaw)
+          .map((q) => ({ en: clip(q.en, 400), es: clip(q.es, 400) }))
           .filter((q: { en: string }) => q.en),
         encaje_tiene_es: job ? list(parsed.encaje_tiene_es, 6) : [],
         encaje_falta_es: job ? list(parsed.encaje_falta_es, 6) : [],

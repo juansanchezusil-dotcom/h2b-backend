@@ -9,7 +9,7 @@ export async function fetchSeasonalJobs() {
     if (!res.ok) return [];
     const data = await res.json();
     const items = data.data || data.hits || [];
-    return items.map((item: any) => ({
+    return items.map((item: Record<string, string | undefined>) => ({
       title: item.job_title || item.title || "Trabajo H-2B",
       employer_name: item.employer_name || item.employer || "Desconocido",
       location: item.worksite_city ? `${item.worksite_city}, ${item.worksite_state || ""}` : "EE. UU.",

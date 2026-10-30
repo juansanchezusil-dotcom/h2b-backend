@@ -32,7 +32,7 @@ async function run() {
   const sheet = workbook.Sheets[workbook.SheetNames[0]];
 
   // Leer la matriz cruda de celdas por posición (Fila x Columna)
-  const rawRows: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+  const rawRows: unknown[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
 
   console.log(`🔎 Procesando ${rawRows.length - 1} filas del Excel...`);
 

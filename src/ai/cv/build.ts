@@ -1,5 +1,6 @@
 import type { CandidateProfile } from './types';
 import { factIndex } from './profile';
+import { asArray, asRaw } from '../../utils/raw';
 
 export interface CvBullet {
   text: string;
@@ -63,19 +64,20 @@ function englishLevelLabel(level: string): string {
 // - un bullet sin referencias válidas a datos de esa experiencia se descarta;
 // - cualquier número (cifra, porcentaje, año) debe existir en los datos del usuario.
 // Devuelve el CV verificado y cuántas frases se descartaron.
-export function buildVerifiedCv(profile: CandidateProfile, model: any): { cv: BuiltCv; removed: number } {
+export function buildVerifiedCv(profile: CandidateProfile, modelOutput: unknown): { cv: BuiltCv; removed: number } {
+  const model = asRaw(modelOutput);
   const facts = factIndex(profile);
   const allowedNumbers = new Set(numbersIn(JSON.stringify(profile)));
   const numbersOk = (text: string) => numbersIn(text).every((n) => allowedNumbers.has(n));
   let removed = 0;
   const anyoneLeads = profile.experiences.some((e) => e.autonomy === 'ensena' && !!e.supervision);
 
-  const modelExps: any[] = Array.isArray(model?.experiences) ? model.experiences : [];
+  const modelExps = asArray(model.experiences).map(asRaw);
   const experiences: CvExperience[] = profile.experiences.flatMap((exp): CvExperience[] => {
-    const m = modelExps.find((x) => x?.id === exp.id) || {};
+    const m = modelExps.find((x) => x.id === exp.id) || {};
     // Si solo lo vio hacer, no es experiencia: no entra al CV
     if (exp.autonomy === 'observo') {
-      removed += Array.isArray(m.bullets) ? m.bullets.length : 0;
+      removed += asArray(m.bullets).length;
       return [];
     }
     const canLead = exp.autonomy === 'ensena' && !!exp.supervision;
@@ -85,9 +87,9 @@ export function buildVerifiedCv(profile: CandidateProfile, model: any): { cv: Bu
     const informal = exp.kind === 'informal';
     const useCompany = !informal && !!exp.company;
     const bullets: CvBullet[] = [];
-    for (const b of Array.isArray(m.bullets) ? m.bullets : []) {
-      let text = clip(b?.text, 400);
-      const refs: string[] = Array.isArray(b?.refs) ? b.refs : [];
+    for (const b of asArray(m.bullets).map(asRaw)) {
+      let text = clip(b.text, 400);
+      const refs = asArray(b.refs);
       const validRef = refs.some((r) => typeof r === 'string' && r.startsWith(`${exp.id}.`) && facts.has(r));
       if (!text || !validRef || !numbersOk(text) || overstates(text, exp.autonomy, canLead)) {
         removed++;
@@ -108,7 +110,7 @@ export function buildVerifiedCv(profile: CandidateProfile, model: any): { cv: Bu
     ];
   });
 
-  const sentences = clip(model?.summary, 900).split(/(?<=[.!?])\s+/).filter(Boolean);
+  const sentences = clip(model.summary, 900).split(/(?<=[.!?])\s+/).filter(Boolean);
   const keptSentences = sentences.filter((s) => numbersOk(s) && (anyoneLeads || !LEADERSHIP.test(s)));
   removed += sentences.length - keptSentences.length;
 
@@ -122,8 +124,8 @@ export function buildVerifiedCv(profile: CandidateProfile, model: any): { cv: Bu
   if (english) languages.push(`English: ${english}`);
   languages.push(...profile.languages.filter((l) => !/english|ingl[eé]s|spanish|espa[ñn]ol/i.test(l)));
 
-  const headlineEn = clip(model?.headline_en, 60);
-  const availabilityEn = clip(model?.availability_en, 300);
+  const headlineEn = clip(model.headline_en, 60);
+  const availabilityEn = clip(model.availability_en, 300);
   const availabilityParts: string[] = [];
   if (profile.availability && availabilityEn && numbersOk(availabilityEn)) availabilityParts.push(availabilityEn);
   // Solo se muestra cuando la persona dijo que sí tiene pasaporte vigente; nunca se incluye el número
@@ -136,9 +138,9 @@ export function buildVerifiedCv(profile: CandidateProfile, model: any): { cv: Bu
       headline: headlineEn && !/\d/.test(headlineEn) ? headlineEn : profile.targetRole,
       summary: keptSentences.join(' '),
       experiences,
-      skills: strings(model?.skills, 10, 40),
-      education: strings(model?.education, profile.education.length, 160),
-      certifications: strings(model?.certifications, profile.certifications.length, 160),
+      skills: strings(model.skills, 10, 40),
+      education: strings(model.education, profile.education.length, 160),
+      certifications: strings(model.certifications, profile.certifications.length, 160),
       languages,
       availability: availabilityParts.join(' '),
       sectionTitle: profile.route === 'C' ? 'RELEVANT PRACTICAL EXPERIENCE' : 'PROFESSIONAL EXPERIENCE',
@@ -190,12 +192,13 @@ export function verifyRequirements(profile: CandidateProfile, raw: unknown): Req
   const facts = factIndex(profile);
   return (Array.isArray(raw) ? raw : [])
     .slice(0, 8)
-    .map((r: any): Requirement | null => {
-      const text = clip(r?.requirement_es, 200);
+    .map((item): Requirement | null => {
+      const r = asRaw(item);
+      const text = clip(r.requirement_es, 200);
       if (!text) return null;
-      let status: RequirementStatus = STATUSES.includes(r?.status) ? r.status : 'UNKNOWN';
+      let status: RequirementStatus = STATUSES.find((s) => s === r.status) || 'UNKNOWN';
       if (status === 'MATCH' || status === 'TRANSFERABLE') {
-        const refs: unknown[] = Array.isArray(r?.refs) ? r.refs : [];
+        const refs = asArray(r.refs);
         if (!refs.some((ref) => typeof ref === 'string' && facts.has(ref))) status = 'UNKNOWN';
       }
       return { requirement_es: text, status };
@@ -207,7 +210,7 @@ export function verifyRequirements(profile: CandidateProfile, raw: unknown): Req
 // que existan en los datos del candidato o en la oferta, y ninguna puede hablar de patrocinio.
 export function buildVerifiedLetter(
   profile: CandidateProfile,
-  model: any,
+  modelOutput: unknown,
   job: { title?: string; employer_name?: string; job_duties?: string } | null
 ): { letter: string; removed: number } {
   const allowedNumbers = new Set(numbersIn(JSON.stringify(profile) + ' ' + JSON.stringify(job || {})));
@@ -215,7 +218,7 @@ export function buildVerifiedLetter(
   let removed = 0;
   const paragraphs: string[] = [];
 
-  for (const para of (Array.isArray(model?.paragraphs) ? model.paragraphs : []).slice(0, 3)) {
+  for (const para of asArray(asRaw(modelOutput).paragraphs).slice(0, 3)) {
     const sentences = clip(para, 900).split(/(?<=[.!?])\s+/).filter(Boolean);
     const kept = sentences.filter(
       (s) => numbersIn(s).every((n) => allowedNumbers.has(n)) && !/sponsor/i.test(s) && (anyoneLeads || !LEADERSHIP.test(s))

@@ -1,7 +1,8 @@
 import 'dotenv/config';
 import admZip from 'adm-zip';
-import { supabase } from '../db/supabase';
+import { supabase } from '../db/supabase';
 import { errMsg } from '../utils/errors';
+import { asArray, asRaw, type Raw } from '../utils/raw';
 
 interface JobRecord {
   title: string;
@@ -61,14 +62,14 @@ export async function scrapeSeasonalJobs(): Promise<JobRecord[]> {
 
     const jsonFile = zipEntries[0];
     const rawData = JSON.parse(jsonFile.getData().toString('utf8'));
-    const records: any[] = Array.isArray(rawData) ? rawData : (rawData.data || rawData.cases || []);
+    const records = asArray(Array.isArray(rawData) ? rawData : (rawData.data || rawData.cases)).map(asRaw);
 
     console.log(`🔎 Se obtuvieron ${records.length} registros. Procesando datos...`);
 
     if (records.length === 0) return [];
 
     // Extractor profundo capaz de leer propiedades directas, anidadas u objetos anidables
-    const getDeepVal = (item: any, keysToSearch: string[]) => {
+    const getDeepVal = (item: Raw, keysToSearch: string[]): unknown => {
       if (!item) return null;
 
       // 1. Revisa todas las llaves de la raíz (ignorando mayúsculas/minúsculas)
@@ -84,7 +85,7 @@ export async function scrapeSeasonalJobs(): Promise<JobRecord[]> {
       // 2. Respaldo: si el dato no está en la raíz, revisa el primer worksite adicional
       const subContainers = [
         Array.isArray(item.employmentLocations) ? item.employmentLocations[0] : null
-      ].filter(Boolean);
+      ].filter(Boolean).map(asRaw);
 
       for (const container of subContainers) {
         if (typeof container === 'object') {
@@ -103,7 +104,7 @@ export async function scrapeSeasonalJobs(): Promise<JobRecord[]> {
     };
 
     const jobsToSave = records
-      .map((item: any): JobRecord | null => {
+      .map((item): JobRecord | null => {
         const rawCaseNum = getDeepVal(item, ['caseNumber', 'case_number', 'casenumber', 'caseNum', 'id', 'jobOrderNumber']);
         const caseNum = rawCaseNum ? String(rawCaseNum).trim() : `DOL-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
 

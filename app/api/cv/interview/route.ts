@@ -4,6 +4,7 @@ import { guardAiRequest, CV_TURN_DAILY_LIMIT } from '../../../../src/ai/guard';
 import { generateTextWithFallback, isTransientGeminiError } from '../../../../src/ai/callGemini';
 import { buildInterviewPrompt, type InterviewTurn } from '../../../../src/ai/cv/prompts';
 import { computeGaps, mergeProfile, sanitizeProfile } from '../../../../src/ai/cv/profile';
+import { asArray, asRaw, type Raw } from '../../../../src/utils/raw';
 import { errMsg } from '../../../../src/utils/errors';
 
 function corsHeaders(origin: string | null) {
@@ -35,10 +36,12 @@ export async function POST(request: Request) {
 
     const body = await request.json();
     const profile = sanitizeProfile(body.profile);
-    const turns: InterviewTurn[] = (Array.isArray(body.turns) ? body.turns : [])
-      .filter((t: any) => (t?.role === 'user' || t?.role === 'assistant') && typeof t?.text === 'string')
-      .slice(-8)
-      .map((t: any) => ({ role: t.role, text: t.text.slice(0, 1500) }));
+    const turns: InterviewTurn[] = asArray(body.turns)
+      .map(asRaw)
+      .flatMap((t): InterviewTurn[] =>
+        (t.role === 'user' || t.role === 'assistant') && typeof t.text === 'string' ? [{ role: t.role, text: t.text.slice(0, 1500) }] : []
+      )
+      .slice(-8);
     const pastedCv: string = typeof body.pastedCv === 'string' ? body.pastedCv.trim() : '';
     const clip = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
     const job =
@@ -83,15 +86,16 @@ export async function POST(request: Request) {
       config: { responseMimeType: 'application/json' },
     });
 
-    let parsed: any;
+    let parsed: Raw;
     try {
-      parsed = JSON.parse(text || '{}');
+      parsed = asRaw(JSON.parse(text || '{}'));
     } catch {
       console.error('Entrevista CV: el modelo no devolvió JSON válido:', text.slice(0, 200));
       return NextResponse.json({ errorCode: 'GENERIC', error: 'No se pudo procesar tu respuesta. Intenta de nuevo.' }, { status: 502, headers });
     }
 
-    const merged = mergeProfile(profile, { ...(parsed.profile_updates || {}), route: parsed.route || parsed.profile_updates?.route });
+    const updates = asRaw(parsed.profile_updates);
+    const merged = mergeProfile(profile, { ...updates, route: parsed.route || updates.route });
     const gaps = computeGaps(merged);
     const reply = typeof parsed.reply_es === 'string' ? parsed.reply_es.trim().slice(0, 1200) : '';
 

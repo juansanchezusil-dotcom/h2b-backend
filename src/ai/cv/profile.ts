@@ -1,4 +1,5 @@
 import type { Autonomy, CandidateProfile, Experience, Gap } from './types';
+import { asArray, asRaw } from '../../utils/raw';
 
 const AUTONOMY_LEVELS: Autonomy[] = ['observo', 'ayudaba', 'supervisado', 'solo', 'ensena'];
 
@@ -32,23 +33,26 @@ export function emptyProfile(): CandidateProfile {
   };
 }
 
-function cleanExperience(raw: any, fallbackId: string): Experience {
-  const id = /^e\d{1,2}$/.test(clip(raw?.id, 6)) ? clip(raw.id, 6) : fallbackId;
-  const kind = raw?.kind === 'formal' || raw?.kind === 'informal' ? raw.kind : '';
-  const autonomy: Autonomy = AUTONOMY_LEVELS.includes(raw?.autonomy) ? raw.autonomy : LEGACY_AUTONOMY[raw?.autonomy] || '';
+function cleanExperience(input: unknown, fallbackId: string): Experience {
+  const raw = asRaw(input);
+  const id = /^e\d{1,2}$/.test(clip(raw.id, 6)) ? clip(raw.id, 6) : fallbackId;
+  const kind = raw.kind === 'formal' || raw.kind === 'informal' ? raw.kind : '';
+  const level = clip(raw.autonomy, 20);
+  const autonomy: Autonomy = AUTONOMY_LEVELS.find((a) => a === level) || (Object.hasOwn(LEGACY_AUTONOMY, level) ? LEGACY_AUTONOMY[level] : '');
   return {
-    id, kind, autonomy, supervision: clip(raw?.supervision, 100),
-    title: clip(raw?.title, 100), company: clip(raw?.company, 100), location: clip(raw?.location, 100),
-    dates: clip(raw?.dates, 80), duration: clip(raw?.duration, 80),
-    tasks: list(raw?.tasks), tools: list(raw?.tools), results: list(raw?.results),
+    id, kind, autonomy, supervision: clip(raw.supervision, 100),
+    title: clip(raw.title, 100), company: clip(raw.company, 100), location: clip(raw.location, 100),
+    dates: clip(raw.dates, 80), duration: clip(raw.duration, 80),
+    tasks: list(raw.tasks), tools: list(raw.tools), results: list(raw.results),
   };
 }
 
 // Limpia y acota cualquier perfil que venga de fuera (cliente o modelo): tipos correctos,
 // textos recortados, listas con tope. Nada que no sea un campo conocido pasa.
-export function sanitizeProfile(raw: any): CandidateProfile {
+export function sanitizeProfile(input: unknown): CandidateProfile {
   const p = emptyProfile();
-  if (!raw || typeof raw !== 'object') return p;
+  if (!input || typeof input !== 'object') return p;
+  const raw = asRaw(input);
   p.fullName = clip(raw.fullName, 100);
   p.city = clip(raw.city, 100);
   p.phone = clip(raw.phone, 40);
@@ -64,14 +68,13 @@ export function sanitizeProfile(raw: any): CandidateProfile {
   p.notDone = list(raw.notDone);
   p.availability = clip(raw.availability, 250);
   p.passport = raw.passport === 'yes' || raw.passport === 'no' ? raw.passport : '';
-  const exps = Array.isArray(raw.experiences) ? raw.experiences.slice(0, 8) : [];
-  p.experiences = exps.map((e: any, i: number) => cleanExperience(e, `e${i + 1}`));
+  p.experiences = asArray(raw.experiences).slice(0, 8).map((e, i) => cleanExperience(e, `e${i + 1}`));
   return p;
 }
 
 // Aplica lo que el modelo extrajo del último mensaje sobre el perfil acumulado.
 // Los textos nuevos reemplazan solo si no vienen vacíos; las listas se suman sin repetir.
-export function mergeProfile(base: CandidateProfile, rawUpdates: any): CandidateProfile {
+export function mergeProfile(base: CandidateProfile, rawUpdates: unknown): CandidateProfile {
   const up = sanitizeProfile(rawUpdates);
   const out: CandidateProfile = JSON.parse(JSON.stringify(base));
   const scalars = ['fullName', 'city', 'phone', 'email', 'targetRole', 'industry', 'englishLevel'] as const;
@@ -85,9 +88,9 @@ export function mergeProfile(base: CandidateProfile, rawUpdates: any): Candidate
   if (up.availability) out.availability = up.availability;
   if (up.passport) out.passport = up.passport;
 
-  const rawExps = Array.isArray(rawUpdates?.experiences) ? rawUpdates.experiences.slice(0, 8) : [];
-  rawExps.forEach((rawExp: any) => {
-    const wantedId = clip(rawExp?.id, 6);
+  const rawExps = asArray(asRaw(rawUpdates).experiences).slice(0, 8);
+  rawExps.forEach((rawExp) => {
+    const wantedId = clip(asRaw(rawExp).id, 6);
     const existing = out.experiences.find((e) => e.id === wantedId);
     const nextId = () => {
       let n = out.experiences.length + 1;
@@ -96,9 +99,10 @@ export function mergeProfile(base: CandidateProfile, rawUpdates: any): Candidate
     };
     const incoming = cleanExperience(rawExp, existing ? existing.id : nextId());
     if (existing) {
-      (['kind', 'autonomy', 'supervision', 'title', 'company', 'location', 'dates', 'duration'] as const).forEach((k) => {
-        if (incoming[k]) (existing as any)[k] = incoming[k];
-      });
+      const fill = <K extends 'kind' | 'autonomy' | 'supervision' | 'title' | 'company' | 'location' | 'dates' | 'duration'>(k: K) => {
+        if (incoming[k]) existing[k] = incoming[k];
+      };
+      (['kind', 'autonomy', 'supervision', 'title', 'company', 'location', 'dates', 'duration'] as const).forEach(fill);
       existing.tasks = union(existing.tasks, incoming.tasks);
       existing.tools = union(existing.tools, incoming.tools);
       existing.results = union(existing.results, incoming.results);
