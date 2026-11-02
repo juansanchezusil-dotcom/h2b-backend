@@ -66,12 +66,14 @@ export async function POST(request: Request) {
     }
 
     const { letter, removed } = buildVerifiedLetter(profile, parsed, job);
+    // El modelo a veces devuelve la nota como lista: sin esto, la persona no vería qué falta
+    const notes = (Array.isArray(parsed.notes_es) ? parsed.notes_es : [parsed.notes_es]).filter((n) => typeof n === 'string').join(' ');
     if (!letter) {
       return NextResponse.json({ errorCode: 'GENERIC', error: 'No se pudo generar la carta. Intenta de nuevo.' }, { status: 502, headers });
     }
 
     return NextResponse.json(
-      { letter, notes_es: typeof parsed.notes_es === 'string' ? parsed.notes_es.slice(0, 400) : '', removed },
+      { letter, notes_es: notes.slice(0, 400), removed },
       { status: 200, headers }
     );
   } catch (err) {
