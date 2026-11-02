@@ -9,8 +9,15 @@ function clientKey(request: Request): string {
   return createHash('sha256').update(`rl:${salt}:${ip}`).digest('hex').slice(0, 32);
 }
 
-// true si la llamada puede seguir. Si el contador falla no se bloquea a nadie (mejor dejar pasar que cerrar la página).
-export async function allowRequest(request: Request, bucket: string, limit: number, windowSeconds: number): Promise<boolean> {
+// true si la llamada puede seguir. Si el contador falla no se bloquea a nadie (mejor dejar pasar que cerrar la página),
+// salvo con failClosed: las rutas públicas que gastan dinero en IA no pueden quedar sin tope.
+export async function allowRequest(
+  request: Request,
+  bucket: string,
+  limit: number,
+  windowSeconds: number,
+  { failClosed = false }: { failClosed?: boolean } = {}
+): Promise<boolean> {
   try {
     const { data, error } = await adminClient().rpc('consume_rate_limit', {
       p_bucket: bucket,
@@ -19,12 +26,12 @@ export async function allowRequest(request: Request, bucket: string, limit: numb
       p_limit: limit,
     });
     if (error) {
-      console.error('consume_rate_limit falló, se deja pasar la llamada:', error.message);
-      return true;
+      console.error(`consume_rate_limit falló (${bucket}, failClosed=${failClosed}):`, error.message);
+      return !failClosed;
     }
     return data !== false;
   } catch (err) {
-    console.error('Error en el límite de intentos, se deja pasar la llamada:', err);
-    return true;
+    console.error(`Error en el límite de intentos (${bucket}, failClosed=${failClosed}):`, err);
+    return !failClosed;
   }
 }

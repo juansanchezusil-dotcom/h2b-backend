@@ -14,7 +14,7 @@ const DAILY_LIMIT = 5;
 // Análisis por día (UTC) sumando a todos: tope de gasto si la página se hace viral o alguien abusa
 const TOTAL_DAILY_LIMIT = 300;
 
-// Mismo contador que allowRequest, pero con una sola clave para todos. Si el contador falla no se bloquea a nadie.
+// Mismo contador que allowRequest, pero con una sola clave para todos. Si el contador falla se corta: es público y gasta IA.
 async function allowTotal(): Promise<boolean> {
   try {
     const { data, error } = await adminClient().rpc('consume_rate_limit', {
@@ -24,13 +24,13 @@ async function allowTotal(): Promise<boolean> {
       p_limit: TOTAL_DAILY_LIMIT,
     });
     if (error) {
-      console.error('consume_rate_limit (total) falló, se deja pasar la llamada:', error.message);
-      return true;
+      console.error('consume_rate_limit (total) falló, se bloquea la llamada:', error.message);
+      return false;
     }
     return data !== false;
   } catch (err) {
-    console.error('Error en el tope total del detector, se deja pasar la llamada:', err);
-    return true;
+    console.error('Error en el tope total del detector, se bloquea la llamada:', err);
+    return false;
   }
 }
 
@@ -52,7 +52,7 @@ export async function POST(request: Request) {
   const headers = corsHeaders(origin);
 
   try {
-    if (!(await allowRequest(request, 'detector_web', DAILY_LIMIT, 86400))) {
+    if (!(await allowRequest(request, 'detector_web', DAILY_LIMIT, 86400, { failClosed: true }))) {
       return NextResponse.json(
         { errorCode: 'DAILY_LIMIT', error: 'Llegaste al límite de análisis gratis por hoy. Intenta de nuevo mañana.' },
         { status: 429, headers }

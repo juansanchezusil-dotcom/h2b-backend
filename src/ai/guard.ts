@@ -55,12 +55,15 @@ export async function guardAiRequest(
     p_limit: limit,
     p_bucket: bucket,
   });
-  if (rpcError) {
-    // Si el contador falla (ej. migración sin aplicar) no bloqueamos a la persona: ya está autenticada.
-    console.error('consume_ai_usage falló, se deja pasar la llamada:', rpcError.message);
-    return null;
+  // Sin contador no hay tope y cada llamada cuesta dinero: se corta hasta que vuelva a funcionar.
+  if (rpcError || typeof used !== 'number') {
+    console.error('consume_ai_usage falló, se bloquea la llamada:', rpcError?.message || `respuesta inesperada: ${used}`);
+    return NextResponse.json(
+      { errorCode: 'USAGE_UNAVAILABLE', error: 'Los asistentes de IA no están disponibles en este momento. Intenta de nuevo en unos minutos.' },
+      { status: 503, headers }
+    );
   }
-  if (typeof used === 'number' && used > limit) {
+  if (used > limit) {
     return NextResponse.json(
       {
         errorCode: 'DAILY_LIMIT',
