@@ -82,6 +82,33 @@ describe('buildVerifiedCv', () => {
   });
 });
 
+describe('formato del CV', () => {
+  const withTitle = (title_en: string, over: Partial<CandidateProfile['experiences'][0]> = {}) => {
+    const base = profile();
+    const p = { ...base, experiences: [{ ...base.experiences[0], ...over }] };
+    return buildVerifiedCv(p, { experiences: [{ id: 'e1', title_en }] }).cv.experiences[0];
+  };
+
+  it('quita del cargo la empresa y el lugar, aunque cambie el acento', () => {
+    const exp = withTitle('Self-Employed Gardener, Saltillo, Coahuila, Mexico', {
+      kind: 'informal', company: '', location: 'Saltillo, Coahuila, México',
+    });
+    expect(exp.heading).toBe('Self-Employed Gardener');
+    const formal = withTitle('Crew Worker, Constructora Perez, Quetzaltenango');
+    expect(formal.subtitle).toBe('Crew Worker');
+  });
+
+  it('conserva la coma que es parte del cargo', () => {
+    expect(withTitle('Cook, Line and Prep').subtitle).toBe('Cook, Line and Prep');
+  });
+
+  it('separa la disponibilidad del pasaporte con un punto', () => {
+    const p = profile({ availability: 'marzo a noviembre', passport: 'yes' });
+    const { cv } = buildVerifiedCv(p, { availability_en: 'Available from March to November' });
+    expect(cv.availability).toBe('Available from March to November. Valid passport: Yes.');
+  });
+});
+
 describe('computeGaps', () => {
   const critical = (p: CandidateProfile) => computeGaps(p).filter((g) => g.level === 'critical').map((g) => g.key);
 

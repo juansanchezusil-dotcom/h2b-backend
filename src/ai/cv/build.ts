@@ -59,6 +59,15 @@ function englishLevelLabel(level: string): string {
   return '';
 }
 
+// El modelo a veces agrega la empresa o el lugar al cargo ("Crew Worker, Green Valley, Austin"), y el CV ya los
+// muestra aparte: se quitan los tramos que estén en la empresa o el lugar de la persona.
+function titleOnly(title: string, exp: { company: string; location: string }): string {
+  const plain = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+  const known = plain(`${exp.company}, ${exp.location}`);
+  const [first, ...rest] = title.split(',');
+  return [first, ...rest.filter((part) => !known.includes(plain(part)))].join(',').trim();
+}
+
 // Arma el CV a partir de lo que devolvió el modelo, pero SOLO con lo que se puede respaldar:
 // - nombre, empresa, lugar y contacto salen del perfil del usuario, nunca del modelo;
 // - un bullet sin referencias válidas a datos de esa experiencia se descarta;
@@ -83,7 +92,7 @@ export function buildVerifiedCv(profile: CandidateProfile, modelOutput: unknown)
     const canLead = exp.autonomy === 'ensena' && !!exp.supervision;
     const titleEn = clip(m.title_en, 100);
     const datesEn = clip(m.dates_en, 80);
-    const title = titleEn && numbersOk(titleEn) ? titleEn : exp.title;
+    const title = titleEn && numbersOk(titleEn) ? titleOnly(titleEn, exp) : exp.title;
     const informal = exp.kind === 'informal';
     const useCompany = !informal && !!exp.company;
     const bullets: CvBullet[] = [];
@@ -127,7 +136,7 @@ export function buildVerifiedCv(profile: CandidateProfile, modelOutput: unknown)
   const headlineEn = clip(model.headline_en, 60);
   const availabilityEn = clip(model.availability_en, 300);
   const availabilityParts: string[] = [];
-  if (profile.availability && availabilityEn && numbersOk(availabilityEn)) availabilityParts.push(availabilityEn);
+  if (profile.availability && availabilityEn && numbersOk(availabilityEn)) availabilityParts.push(/[.!?]$/.test(availabilityEn) ? availabilityEn : `${availabilityEn}.`);
   // Solo se muestra cuando la persona dijo que sí tiene pasaporte vigente; nunca se incluye el número
   if (profile.passport === 'yes') availabilityParts.push('Valid passport: Yes.');
 
