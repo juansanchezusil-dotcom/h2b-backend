@@ -109,6 +109,17 @@ describe('formato del CV', () => {
   });
 });
 
+describe('suavizar "managed"', () => {
+  it('quien no lidera maneja, no dirige: en el resumen y en las viñetas', () => {
+    const { cv } = buildVerifiedCv(profile(), {
+      summary: 'Helper managing materials on site. Managed concrete mixing.',
+      experiences: [{ id: 'e1', title_en: "Mason's Helper", bullets: [{ text: 'Managed materials delivery to the crew.', refs: ['e1.t1'] }] }],
+    });
+    expect(cv.summary).toBe('Helper handling materials on site. Handled concrete mixing.');
+    expect(cv.experiences[0].bullets[0].text).toBe('Handled materials delivery to the crew.');
+  });
+});
+
 describe('computeGaps', () => {
   const critical = (p: CandidateProfile) => computeGaps(p).filter((g) => g.level === 'critical').map((g) => g.key);
 

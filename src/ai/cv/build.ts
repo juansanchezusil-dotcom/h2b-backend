@@ -36,6 +36,15 @@ const LEADERSHIP =
 const OWN_RESPONSIBILITY = /\b(responsible for|in charge of)\b/i;
 const INDEPENDENCE = /\b(independently|single-handedly|on (his|her|their) own|solely)\b/i;
 
+// "Managed reservations" sin liderazgo se suaviza a "Handled reservations" (en viñetas y en el resumen) en vez de perder la frase
+function softenManaging(text: string): string {
+  return text
+    .replace(/\bmanaged\b/g, 'handled')
+    .replace(/\bManaged\b/g, 'Handled')
+    .replace(/\bmanaging\b/g, 'handling')
+    .replace(/\bManaging\b/g, 'Handling');
+}
+
 // true si la frase afirma más de lo que el nivel de la experiencia respalda
 function overstates(text: string, level: string, canLead: boolean): boolean {
   if (LEADERSHIP.test(text) && !canLead) return true;
@@ -104,8 +113,7 @@ export function buildVerifiedCv(profile: CandidateProfile, modelOutput: unknown)
         removed++;
         continue;
       }
-      // "Managed inventory" sin liderazgo: se suaviza a "Handled inventory" en vez de perder la frase
-      if (!canLead && /^managed\b/i.test(text)) text = text.replace(/^managed\b/i, 'Handled');
+      if (!canLead) text = softenManaging(text);
       bullets.push({ text });
     }
     return [
@@ -145,7 +153,7 @@ export function buildVerifiedCv(profile: CandidateProfile, modelOutput: unknown)
     cv: {
       header: { fullName: profile.fullName, city: profile.city, phone: profile.phone, email: profile.email },
       headline: headlineEn && !/\d/.test(headlineEn) ? headlineEn : profile.targetRole,
-      summary: keptSentences.join(' '),
+      summary: anyoneLeads ? keptSentences.join(' ') : softenManaging(keptSentences.join(' ')),
       experiences,
       skills: strings(model.skills, 10, 40),
       education: strings(model.education, profile.education.length, 160),
