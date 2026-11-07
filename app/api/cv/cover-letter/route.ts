@@ -44,6 +44,8 @@ export async function POST(request: Request) {
         ? { title: clip(body.job.title, 120), employer_name: clip(body.job.employer_name, 120), job_duties: clip(body.job.job_duties, 1500) }
         : null;
 
+    const contactName = clip(body.contact_name, 80);
+
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
       console.error('ERROR: GEMINI_API_KEY no encontrada en process.env');
@@ -65,7 +67,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ errorCode: 'GENERIC', error: 'No se pudo generar la carta. Intenta de nuevo.' }, { status: 502, headers });
     }
 
-    const { letter, removed } = buildVerifiedLetter(profile, parsed, job);
+    const { letter, removed } = buildVerifiedLetter(profile, parsed, job, contactName);
     // El modelo a veces devuelve la nota como lista: sin esto, la persona no vería qué falta
     const notes = (Array.isArray(parsed.notes_es) ? parsed.notes_es : [parsed.notes_es]).filter((n) => typeof n === 'string').join(' ');
     if (!letter) {

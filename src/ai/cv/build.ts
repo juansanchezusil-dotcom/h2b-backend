@@ -223,12 +223,31 @@ export function verifyRequirements(profile: CandidateProfile, raw: unknown): Req
     .filter((r): r is Requirement => r !== null);
 }
 
+// Saludo de la carta, puesto por código. Solo deja letras, espacios, punto, apóstrofe y guion: el
+// nombre del contacto es texto libre del usuario y nunca debe colar otra cosa en la carta.
+// Con título (Mr./Ms./Mrs./Mx./Dr.) usa "Dear Ms. Smith,"; sin título, el nombre completo, sin
+// asumir género. Sin contacto: "Dear Hiring Manager,".
+export function buildGreeting(contactName?: string): string {
+  const name = (contactName || '')
+    .replace(/[^\p{L}\s.'’-]/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 60);
+  if (!/\p{L}{2}/u.test(name)) return 'Dear Hiring Manager,';
+  const words = name
+    .split(' ')
+    .slice(0, 4)
+    .map((w) => (w === w.toLowerCase() ? w.charAt(0).toUpperCase() + w.slice(1) : w));
+  return `Dear ${words.join(' ')},`;
+}
+
 // Arma la carta con saludo y firma puestos por código. Cada oración debe tener solo números
 // que existan en los datos del candidato o en la oferta, y ninguna puede hablar de patrocinio.
 export function buildVerifiedLetter(
   profile: CandidateProfile,
   modelOutput: unknown,
-  job: { title?: string; employer_name?: string; job_duties?: string } | null
+  job: { title?: string; employer_name?: string; job_duties?: string } | null,
+  contactName?: string
 ): { letter: string; removed: number } {
   const allowedNumbers = new Set(numbersIn(JSON.stringify(profile) + ' ' + JSON.stringify(job || {})));
   const anyoneLeads = profile.experiences.some((e) => e.autonomy === 'ensena' && !!e.supervision);
@@ -247,6 +266,6 @@ export function buildVerifiedLetter(
   const body = paragraphs.join('\n\n');
   return {
     removed,
-    letter: body ? `Dear Hiring Manager,\n\n${body}\n\nSincerely,\n${profile.fullName}` : '',
+    letter: body ? `${buildGreeting(contactName)}\n\n${body}\n\nSincerely,\n${profile.fullName}` : '',
   };
 }

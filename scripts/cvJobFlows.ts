@@ -88,8 +88,10 @@ async function main() {
     if (!general.letter) issues.push('carta general vacía');
 
     const parsedLetter = await ask(ai, buildCoverLetterPrompt({ profile: c.profile, job: c.job }));
-    const adapted = buildVerifiedLetter(c.profile, parsedLetter, c.job);
+    const adapted = buildVerifiedLetter(c.profile, parsedLetter, c.job, 'ms. rivera');
     if (!adapted.letter) issues.push('carta para la oferta vacía');
+    if (adapted.letter && !adapted.letter.startsWith('Dear Ms. Rivera,')) issues.push('saludo con contacto incorrecto');
+    if (general.letter && !general.letter.startsWith('Dear Hiring Manager,')) issues.push('saludo genérico incorrecto');
 
     const parsedCv = await ask(ai, buildGeneratePrompt({ profile: c.profile, job: c.job }));
     const { cv, removed } = buildVerifiedCv(c.profile, parsedCv);
