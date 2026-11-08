@@ -2,6 +2,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { GoogleGenAI } from '@google/genai';
 import { errMsg } from '../utils/errors';
 import { asArray, asRaw } from '../utils/raw';
+import { GEMINI_FALLBACK_MODEL, recordAiCost } from './costTracking';
 
 // Los asistentes de IA (CV, carta, correo, simulador, detector de estafas) llaman a Claude y, si falla, a Gemini.
 // Gemini a veces responde 503 "high demand" o 429 de cupo, errores que casi siempre se resuelven solos
@@ -99,6 +100,7 @@ async function callClaude(contents: unknown, tier: AiTier): Promise<string> {
   if (!text.trim()) throw new Error(`Claude ${model} respondió vacío`);
   // Para medir el costo real por función cuando haya uso de verdad
   console.log(`🤖 Claude ${model}: ${response.usage.input_tokens} in / ${response.usage.output_tokens} out`);
+  recordAiCost(model, response.usage.input_tokens, response.usage.output_tokens);
   return extractJson(text);
 }
 
@@ -117,5 +119,6 @@ export async function generateTextWithFallback(
     }
   }
   const response = await generateContentWithRetry(ai, params);
+  recordAiCost(GEMINI_FALLBACK_MODEL, 0, 0);
   return response.text || '';
 }
