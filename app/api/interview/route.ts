@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
-import { guardAiRequest } from '../../../src/ai/guard';
+import { aiUserId, guardAiRequest } from '../../../src/ai/guard';
 import { generateTextWithFallback, isTransientGeminiError } from '../../../src/ai/callGemini';
 import {
   INTERVIEW_TURN_DAILY_LIMIT,
@@ -63,7 +63,7 @@ export async function POST(request: Request) {
         model: MODEL,
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
         config: { responseMimeType: 'application/json' },
-      });
+      }, { feature: 'simulador', userId: aiUserId(request) });
       return JSON.parse(text || '{}');
     };
 

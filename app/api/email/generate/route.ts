@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
-import { guardAiRequest } from '../../../../src/ai/guard';
+import { aiUserId, guardAiRequest } from '../../../../src/ai/guard';
 import { generateTextWithFallback, isTransientGeminiError } from '../../../../src/ai/callGemini';
 import { errMsg } from '../../../../src/utils/errors';
 
@@ -131,7 +131,7 @@ Responde ÚNICAMENTE con un objeto JSON con estas claves:
       model: 'gemini-3.6-flash',
       contents: [{ role: 'user', parts: [{ text: promptText }] }],
       config: { responseMimeType: 'application/json' },
-    });
+    }, { feature: 'correo', userId: aiUserId(request) });
 
     const parsed = JSON.parse(responseText || '{}');
     return NextResponse.json(parsed, { status: 200, headers });

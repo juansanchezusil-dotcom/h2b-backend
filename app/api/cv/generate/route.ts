@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
-import { guardAiRequest } from '../../../../src/ai/guard';
+import { aiUserId, guardAiRequest } from '../../../../src/ai/guard';
 import { generateTextWithFallback, isTransientGeminiError } from '../../../../src/ai/callGemini';
 import { buildGeneratePrompt } from '../../../../src/ai/cv/prompts';
 import { computeGaps, profileToPlainText, sanitizeProfile } from '../../../../src/ai/cv/profile';
@@ -58,7 +58,7 @@ export async function POST(request: Request) {
       model: 'gemini-3.6-flash',
       contents: [{ role: 'user', parts: [{ text: buildGeneratePrompt({ profile, job }) }] }],
       config: { responseMimeType: 'application/json' },
-    }, { tier: 'quality' });
+    }, { tier: 'quality', feature: 'cv', userId: aiUserId(request) });
 
     let parsed: Raw;
     try {

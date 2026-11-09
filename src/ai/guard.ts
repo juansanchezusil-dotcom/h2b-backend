@@ -8,6 +8,10 @@ export const DAILY_AI_LIMIT = 20;
 // completa son varios mensajes y no debe gastar la cuota general.
 export const CV_TURN_DAILY_LIMIT = 40;
 
+// Quién pidió cada llamada, para atribuir el costo de IA a un miembro sin cambiar lo que devuelve el guard
+const requestUsers = new WeakMap<Request, string>();
+export const aiUserId = (request: Request): string | undefined => requestUsers.get(request);
+
 interface GuardOptions {
   bucket?: string;
   limit?: number;
@@ -41,6 +45,8 @@ export async function guardAiRequest(
       { status: 401, headers }
     );
   }
+
+  requestUsers.set(request, data.user.id);
 
   // Las llamadas a IA cuestan dinero: solo miembros con acceso vigente (antes bastaba cualquier cuenta con sesión)
   if (!(await userHasActiveAccess(supabase, data.user))) {

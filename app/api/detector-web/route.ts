@@ -133,7 +133,7 @@ Responde ÚNICAMENTE con un objeto JSON estricto con las claves: "nivel" ("alto"
       config: {
         responseMimeType: 'application/json',
       },
-    });
+    }, { feature: 'detector_web' });
 
     const parsed = JSON.parse(responseText);
 

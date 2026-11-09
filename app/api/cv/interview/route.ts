@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
-import { guardAiRequest, CV_TURN_DAILY_LIMIT } from '../../../../src/ai/guard';
+import { aiUserId, guardAiRequest, CV_TURN_DAILY_LIMIT } from '../../../../src/ai/guard';
 import { generateTextWithFallback, isTransientGeminiError } from '../../../../src/ai/callGemini';
 import { buildInterviewPrompt, type InterviewTurn } from '../../../../src/ai/cv/prompts';
 import { computeGaps, mergeProfile, sanitizeProfile } from '../../../../src/ai/cv/profile';
@@ -84,7 +84,7 @@ export async function POST(request: Request) {
       model: 'gemini-3.6-flash',
       contents: [{ role: 'user', parts: [{ text: prompt }, ...(documentPart ? [documentPart] : [])] }],
       config: { responseMimeType: 'application/json' },
-    });
+    }, { feature: 'cv_entrevista', userId: aiUserId(request) });
 
     let parsed: Raw;
     try {

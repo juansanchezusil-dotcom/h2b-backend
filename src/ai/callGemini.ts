@@ -2,7 +2,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { GoogleGenAI } from '@google/genai';
 import { errMsg } from '../utils/errors';
 import { asArray, asRaw } from '../utils/raw';
-import { GEMINI_FALLBACK_MODEL, recordAiCost } from './costTracking';
+import { GEMINI_FALLBACK_MODEL, recordAiCost, type AiCostContext } from './costTracking';
 
 // Los asistentes de IA (CV, carta, correo, simulador, detector de estafas) llaman a Claude y, si falla, a Gemini.
 // Gemini a veces responde 503 "high demand" o 429 de cupo, errores que casi siempre se resuelven solos
@@ -85,7 +85,7 @@ function extractJson(text: string): string {
   return start >= 0 && end > start ? text.slice(start, end + 1) : text;
 }
 
-async function callClaude(contents: unknown, tier: AiTier): Promise<string> {
+async function callClaude(contents: unknown, tier: AiTier, ctx: AiCostContext): Promise<string> {
   const { model, effort, maxTokens } = CLAUDE_MODELS[tier];
   const response = await getClaude().messages.create({
     model,
@@ -100,7 +100,7 @@ async function callClaude(contents: unknown, tier: AiTier): Promise<string> {
   if (!text.trim()) throw new Error(`Claude ${model} respondió vacío`);
   // Para medir el costo real por función cuando haya uso de verdad
   console.log(`🤖 Claude ${model}: ${response.usage.input_tokens} in / ${response.usage.output_tokens} out`);
-  recordAiCost(model, response.usage.input_tokens, response.usage.output_tokens);
+  recordAiCost(model, response.usage.input_tokens, response.usage.output_tokens, ctx);
   return extractJson(text);
 }
 
@@ -109,16 +109,16 @@ async function callClaude(contents: unknown, tier: AiTier): Promise<string> {
 export async function generateTextWithFallback(
   ai: GoogleGenAI,
   params: Parameters<GoogleGenAI['models']['generateContent']>[0],
-  { tier = 'fast' }: { tier?: AiTier } = {}
+  { tier = 'fast', feature, userId }: { tier?: AiTier } & AiCostContext = {}
 ): Promise<string> {
   if (process.env.ANTHROPIC_API_KEY) {
     try {
-      return await callClaude(params.contents, tier);
+      return await callClaude(params.contents, tier, { feature, userId });
     } catch (err) {
       console.warn('⚠️ Claude falló, respondiendo con Gemini:', errMsg(err) || err);
     }
   }
   const response = await generateContentWithRetry(ai, params);
-  recordAiCost(GEMINI_FALLBACK_MODEL, 0, 0);
+  recordAiCost(GEMINI_FALLBACK_MODEL, 0, 0, { feature, userId });
   return response.text || '';
 }

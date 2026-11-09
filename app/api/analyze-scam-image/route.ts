@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
-import { guardAiRequest } from '../../../src/ai/guard';
+import { aiUserId, guardAiRequest } from '../../../src/ai/guard';
 import { generateTextWithFallback, isTransientGeminiError } from '../../../src/ai/callGemini';
 import { errMsg } from '../../../src/utils/errors';
 
@@ -92,7 +92,7 @@ Responde ÚNICAMENTE con un objeto JSON estricto con las claves: "nivel" ("alto"
       config: {
         responseMimeType: 'application/json',
       },
-    });
+    }, { feature: 'detector_estafa', userId: aiUserId(request) });
 
     const parsed = JSON.parse(responseText);
 
