@@ -226,7 +226,7 @@ export function renderMapaReminder(d: { nombre: string | null; masterclassUrl: s
 // inventada (las fechas son las reales), sin promesas de resultado y con la baja a la vista.
 export function renderMapaSequence(
   step: number,
-  d: { nombre: string | null; masterclassUrl: string; mapaUrl: string; unsubscribeUrl: string }
+  d: { nombre: string | null; masterclassUrl: string; liveUrl: string; mapaUrl: string; unsubscribeUrl: string }
 ): RenderedEmail {
   const hola = firstName(d.nombre) ? `Hola ${firstName(d.nombre)}, soy Juan.` : 'Hola, soy Juan.';
   let subject = '';
@@ -242,11 +242,11 @@ export function renderMapaSequence(
     ];
   } else if (step === 3) {
     subject = 'Hoy es la masterclass';
-    button = { label: 'Entrar a la masterclass', url: d.masterclassUrl };
+    button = { label: 'Entrar a la masterclass', url: d.liveUrl };
     paragraphs = [
       hola,
       'Hoy es la masterclass. Empezamos a las 7:00 p. m., hora de Perú.',
-      'Usa el enlace que recibiste al reservar tu lugar. Si no lo encuentras, entra desde aquí.',
+      'Entra con el botón de abajo, a la hora de la clase.',
       'Ten a la mano tu CV, si ya tienes uno, y un cuaderno o un archivo para anotar. Nos vemos esta noche.',
     ];
   } else {
