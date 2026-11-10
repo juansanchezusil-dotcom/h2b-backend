@@ -14,9 +14,11 @@ export async function POST(request: Request) {
   if (!email.includes('@')) return NextResponse.json({ error: 'Correo inválido' }, { status: 400 });
   const nota = typeof body.nota === 'string' ? body.nota.trim().slice(0, 500) : '';
 
+  const canal = ['skool', 'correo', 'telefono', 'otro'].includes(body.canal) ? body.canal : null;
+
   const { error } = await adminClient()
     .from('accesos')
-    .update({ contactado_el: new Date().toISOString(), nota_admin: nota || null })
+    .update({ contactado_el: new Date().toISOString(), nota_admin: nota || null, canal_contacto: canal })
     .eq('email', email);
   if (error) {
     console.error('Error marcando contacto:', error);
@@ -34,7 +36,7 @@ export async function DELETE(request: Request) {
   const email = normalize(body.email);
   if (!email) return NextResponse.json({ error: 'Falta el correo' }, { status: 400 });
 
-  const { error } = await adminClient().from('accesos').update({ contactado_el: null, nota_admin: null }).eq('email', email);
+  const { error } = await adminClient().from('accesos').update({ contactado_el: null, nota_admin: null, canal_contacto: null }).eq('email', email);
   if (error) {
     console.error('Error quitando la marca de contacto:', error);
     return NextResponse.json({ error: 'No se pudo deshacer.' }, { status: 500 });

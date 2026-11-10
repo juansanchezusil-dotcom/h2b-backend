@@ -18,6 +18,7 @@ export interface CorreosMiembro {
   sinRespuesta: number; // correos enviados después de su última visita
   baja: boolean;
   contactadoEl: string | null;
+  canalContacto: string | null;
   veredicto: { tono: 'ok' | 'aviso' | 'alto'; texto: string };
 }
 
@@ -52,7 +53,7 @@ export function correosPorMiembro(
 
     let veredicto: CorreosMiembro['veredicto'];
     if (baja) veredicto = { tono: 'aviso', texto: 'Se dio de baja de los correos. No se le escribe.' };
-    else if (sinRespuesta >= 2) veredicto = { tono: 'alto', texto: `${sinRespuesta} correos sin que vuelva. El correo ya no funciona con esta persona: escríbele tú.` };
+    else if (sinRespuesta >= 2) veredicto = { tono: 'alto', texto: `${sinRespuesta} correos sin que vuelva. El correo ya no funciona con esta persona: escríbele por Skool.` };
     else if (sinRespuesta === 1) veredicto = { tono: 'aviso', texto: '1 correo sin que vuelva todavía.' };
     else if (propios.length) veredicto = { tono: 'ok', texto: 'Volvió a entrar después del último correo.' };
     else veredicto = { tono: 'ok', texto: 'No se le ha enviado ningún correo automático.' };
@@ -66,6 +67,7 @@ export function correosPorMiembro(
       sinRespuesta,
       baja,
       contactadoEl: m.contactadoEl,
+      canalContacto: m.canalContacto ?? null,
       veredicto,
     };
   });

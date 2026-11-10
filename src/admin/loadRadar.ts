@@ -7,7 +7,7 @@ export async function loadRadarInput(supabase: SupabaseClient, now: number): Pro
   const since = new Date(now - RADAR.commitmentDays * 24 * 60 * 60 * 1000).toISOString();
 
   const [accesosRes, profilesRes, appsRes, eventsRes] = await Promise.all([
-    supabase.from('accesos').select('email, vence_el, origen, created_at, contactado_el, nota_admin').eq('activo', true),
+    supabase.from('accesos').select('email, vence_el, origen, created_at, contactado_el, nota_admin, canal_contacto').eq('activo', true),
     supabase.from('profiles').select('id, full_name, last_seen_at, perfil_completado, base_cv_text, manual_steps'),
     supabase.from('applications').select('user_id, status').limit(20000),
     supabase

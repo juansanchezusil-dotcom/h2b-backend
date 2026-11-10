@@ -30,6 +30,7 @@ export interface RadarInput {
     created_at: string | null;
     contactado_el?: string | null;
     nota_admin?: string | null;
+    canal_contacto?: string | null;
   }[];
   // por correo en minúsculas
   users: Map<string, { id: string; last_sign_in_at: string | null }>;
@@ -67,6 +68,7 @@ export interface Miembro {
   acelerador: { candidato: boolean; motivos: string[] };
   casoExito: boolean;
   contactadoEl: string | null;
+  canalContacto: string | null;
   diasDesdeContacto: number | null;
   nota: string | null;
   // Hay algo que hacer con esta persona y no se le ha escrito en los últimos días
@@ -217,6 +219,7 @@ export function computeRadar(input: RadarInput): { resumen: Resumen; miembros: M
       acelerador,
       casoExito,
       contactadoEl: a.contactado_el || null,
+      canalContacto: a.canal_contacto || null,
       diasDesdeContacto,
       nota: a.nota_admin || null,
       porContactar,
