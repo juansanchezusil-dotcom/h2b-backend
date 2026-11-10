@@ -71,6 +71,7 @@ function body(kind: EmailKind, d: TemplateData): Body {
           paragraphs: [
             hola,
             `Se cumplieron tus primeros 30 días en Juan Te Avisa PRO y llegaste a la meta: perfil, CV y ${plural(d.postulaciones30, 'postulación', 'postulaciones')} a empresas distintas. Esto lo hiciste tú.`,
+            'Te corresponde la insignia del Reto de 30 días en la comunidad de Skool. Si además quieres que te felicite en un post de la comunidad, respóndeme este correo y lo hago. Es opcional: si prefieres privacidad, no se publica nada.',
             'Lo que sigue es el seguimiento: escribir a las empresas que no respondieron a los 7, 14 y 21 días, y seguir postulando con el mismo ritmo.',
             'Si quieres contarme cómo te va o qué te cuesta, respóndeme este correo.',
           ],
