@@ -4,6 +4,7 @@ import { aiUserId, guardAiRequest } from '../../../src/ai/guard';
 import { generateTextWithFallback, isTransientGeminiError } from '../../../src/ai/callGemini';
 import { ASISTENTE_DAILY_LIMIT, MAX_MESSAGE, buildAsistentePrompt, cleanHistory, clip } from '../../../src/ai/asistente';
 import { errMsg } from '../../../src/utils/errors';
+import { guardarPregunta } from '../../../src/ai/asistentePreguntas';
 
 function corsHeaders(origin: string | null) {
   return {
@@ -49,7 +50,10 @@ export async function POST(request: Request) {
     if (!respuesta) {
       return NextResponse.json({ errorCode: 'GENERIC', error: 'No pude responder esta vez. Intenta de nuevo.' }, { status: 502, headers });
     }
-    return NextResponse.json({ respuesta, deriva: parsed.deriva === true, limite: ASISTENTE_DAILY_LIMIT }, { status: 200, headers });
+    const deriva = parsed.deriva === true;
+    // Sin nombre ni correo; si falla el guardado no se corta la respuesta
+    await guardarPregunta({ pregunta: message, respuesta, deriva, pantalla: clip(body.pantalla, 60) });
+    return NextResponse.json({ respuesta, deriva, limite: ASISTENTE_DAILY_LIMIT }, { status: 200, headers });
   } catch (err) {
     console.error('Error en el asistente de dudas:', err);
     if (isTransientGeminiError(errMsg(err) || '')) {
