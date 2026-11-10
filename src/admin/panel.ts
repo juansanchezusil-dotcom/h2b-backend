@@ -19,6 +19,7 @@ export interface PanelFilters {
   puesto?: string;
   pais?: string;
   cohorte?: string;
+  cuentas?: 'todas'; // por defecto el panel solo cuenta miembros reales (sin pruebas ni la cuenta del administrador)
 }
 
 export interface PanelData {
@@ -51,6 +52,7 @@ export function parseFilters(params: URLSearchParams): PanelFilters {
     puesto: clip('puesto'),
     pais: clip('pais'),
     cohorte: clip('cohorte'),
+    cuentas: params.get('cuentas') === 'todas' ? 'todas' : undefined,
   };
 }
 
@@ -150,7 +152,9 @@ function buildCtx(data: PanelData, f: PanelFilters): Ctx {
   const puestoUsers = puesto
     ? new Set(data.apps.filter((a) => a.user_id && (a.job_title || '').toLowerCase().includes(puesto)).map((a) => a.user_id as string))
     : null;
+  const admins = new Set((process.env.ADMIN_EMAILS || '').split(',').map((e) => e.trim().toLowerCase()).filter(Boolean));
   const miembros = data.miembros.filter((m) => {
+    if (f.cuentas !== 'todas' && (m.origen === 'prueba' || admins.has(m.email.trim().toLowerCase()))) return false;
     if (f.estado && f.estado !== 'todos' && m.estado !== f.estado) return false;
     if (f.plan && planOf(m) !== f.plan) return false;
     const id = idOf(m);
