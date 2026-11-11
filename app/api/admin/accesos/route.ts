@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { adminClient, requireAdmin } from '../../../../src/admin/auth';
+import { sendBienvenida } from '../../../../src/email/bienvenida';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const normalize = (email: unknown) => String(email || '').trim().toLowerCase();
@@ -34,19 +35,23 @@ export async function POST(request: Request) {
   }
 
   const supabase = adminClient();
-  const { data: current } = await supabase.from('accesos').select('vence_el').eq('email', email).maybeSingle();
+  const { data: current } = await supabase.from('accesos').select('vence_el, activo').eq('email', email).maybeSingle();
   const currentEnd = current?.vence_el ? new Date(current.vence_el).getTime() : 0;
   const base = Math.max(Date.now(), currentEnd);
+  // Bienvenida solo si no tenía un acceso vigente (alta nueva o reactivación); una renovación no la repite
+  const yaVigente = !!current?.activo && (!current.vence_el || currentEnd > Date.now());
+  const venceEl = new Date(base + dias * DAY_MS).toISOString();
 
   const { error } = await supabase.from('accesos').upsert(
-    { email, activo: true, vence_el: new Date(base + dias * DAY_MS).toISOString(), origen: 'manual' },
+    { email, activo: true, vence_el: venceEl, origen: 'manual' },
     { onConflict: 'email' }
   );
   if (error) {
     console.error('Error guardando acceso:', error);
     return NextResponse.json({ error: 'No se pudo guardar.' }, { status: 500 });
   }
-  return NextResponse.json({ ok: true });
+  const correo = yaVigente ? null : await sendBienvenida({ email, dias, venceEl });
+  return NextResponse.json({ ok: true, correoBienvenida: correo });
 }
 
 // Revoca de inmediato

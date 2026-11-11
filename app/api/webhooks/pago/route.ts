@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { timingSafeEqual } from "crypto";
+import { sendBienvenida } from "../../../../src/email/bienvenida";
 
 export async function POST(request: Request) {
   // Sin WEBHOOK_SECRET configurado el webhook queda cerrado: nadie puede activar ni revocar accesos.
@@ -32,6 +33,9 @@ export async function POST(request: Request) {
     const esCancelacion = ["REFUNDED", "CANCELED", "customer.subscription.deleted"].includes(status);
 
     if (esPagoExitoso) {
+      const correo = email.toLowerCase().trim();
+      const { data: previo } = await supabaseAdmin.from("accesos").select("activo, vence_el").eq("email", correo).maybeSingle();
+      const yaVigente = !!previo?.activo && (!previo.vence_el || new Date(previo.vence_el).getTime() > Date.now());
       const { error } = await supabaseAdmin.from("accesos").upsert(
         {
           email: email.toLowerCase().trim(),
@@ -42,6 +46,7 @@ export async function POST(request: Request) {
       );
 
       if (error) throw error;
+      if (!yaVigente) await sendBienvenida({ email: correo, dias: null, venceEl: null });
       return NextResponse.json({ message: "Acceso activado correctamente", email }, { status: 200 });
     } 
     

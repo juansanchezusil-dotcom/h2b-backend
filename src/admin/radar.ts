@@ -31,6 +31,7 @@ export interface RadarInput {
     contactado_el?: string | null;
     nota_admin?: string | null;
     canal_contacto?: string | null;
+    insignia_el?: string | null;
   }[];
   // por correo en minúsculas
   users: Map<string, { id: string; last_sign_in_at: string | null }>;
@@ -67,6 +68,9 @@ export interface Miembro {
   // Candidato a que Juan le escriba por el Accelerator, con los motivos concretos
   acelerador: { candidato: boolean; motivos: string[] };
   casoExito: boolean;
+  // Completó el Reto y aún no se le ha dado la insignia de Skool
+  insigniaPendiente: boolean;
+  insigniaEl: string | null;
   contactadoEl: string | null;
   canalContacto: string | null;
   diasDesdeContacto: number | null;
@@ -88,6 +92,7 @@ export interface Resumen {
   porContactar: number;
   candidatosAcelerador: number;
   casosExito: number;
+  insigniasPendientes: number;
 }
 
 const days = (now: number, iso: string | null | undefined): number | null => {
@@ -196,7 +201,8 @@ export function computeRadar(input: RadarInput): { resumen: Resumen; miembros: M
     // Seguimiento de contactos: tras escribirle a alguien, deja de salir como pendiente unos días
     const diasDesdeContacto = days(now, a.contactado_el);
     const recienContactado = diasDesdeContacto !== null && diasDesdeContacto < RADAR.contactCooldownDays;
-    const hayQueHacer = prioridad >= 40 || acelerador.candidato || casoExito;
+    const insigniaPendiente = compromiso.califica === true && !a.insignia_el;
+    const hayQueHacer = prioridad >= 40 || acelerador.candidato || casoExito || insigniaPendiente;
     const porContactar = hayQueHacer && !recienContactado;
 
     return {
@@ -218,6 +224,8 @@ export function computeRadar(input: RadarInput): { resumen: Resumen; miembros: M
       compromiso,
       acelerador,
       casoExito,
+      insigniaPendiente,
+      insigniaEl: a.insignia_el || null,
       contactadoEl: a.contactado_el || null,
       canalContacto: a.canal_contacto || null,
       diasDesdeContacto,
@@ -243,6 +251,7 @@ export function computeRadar(input: RadarInput): { resumen: Resumen; miembros: M
     porContactar: 0,
     candidatosAcelerador: 0,
     casosExito: 0,
+    insigniasPendientes: 0,
   };
   for (const m of miembros) {
     resumen.porEstado[m.estado]++;
@@ -255,6 +264,7 @@ export function computeRadar(input: RadarInput): { resumen: Resumen; miembros: M
     if (m.porContactar) resumen.porContactar++;
     if (m.acelerador.candidato) resumen.candidatosAcelerador++;
     if (m.casoExito) resumen.casosExito++;
+    if (m.insigniaPendiente) resumen.insigniasPendientes++;
   }
   return { resumen, miembros };
 }

@@ -19,9 +19,9 @@ const BASE = `SOBRE LA APP (Juan Te Avisa PRO):
 - Agencias DOL: agencias de reclutamiento registradas ante el Departamento de Trabajo.
 - Mi CRM: donde se guardan las ofertas y se sigue cada postulación (guardadas, postulado, seguimiento, entrevista, aceptado, rechazada, no respondido).
 - Extraer oferta con IA: se pega un enlace de seasonaljobs.dol.gov y la oferta se importa al CRM.
-- Pestaña IA: creador de CV en formato americano, carta de presentación, correo para la empresa, simulador de entrevista y detector de estafas.
-- Mi Mapa H2B: un plan por etapas (Prepárate, Búscalas, Postula, Seguimiento, Entrevista).
-- Reto de 30 días: perfil completo, CV hecho y 40 postulaciones a empresas distintas en 30 días. El primer hito son 10. No promete entrevista ni visa: mide el avance.
+- Pestaña "Asistentes IA": creador de CV en formato americano, carta de presentación, correo para la empresa, simulador de entrevista y detector de estafas.
+- Pestaña "Mi Mapa": un plan por etapas (Prepárate, Búscalas, Postula, Seguimiento, Entrevista) con los siguientes pasos según tu avance.
+- Reto de 30 días: perfil completo, CV hecho y 40 postulaciones a empresas distintas en 30 días. El primer hito son 10. No promete entrevista ni visa: mide el avance. Quien cumple el Reto recibe una insignia en la comunidad de Skool y, si quiere, un reconocimiento público (es opcional).
 - Seguimiento: se recomienda escribir a las empresas que no responden a los 7, 14 y 21 días.
 
 SOBRE EL H-2B (información general y pública):

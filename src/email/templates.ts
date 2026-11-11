@@ -344,3 +344,38 @@ export function renderJobAlert(d: { nombre: string | null; jobs: AlertJob[]; app
   const text = [hola, intro, ...lines.map((l) => `- ${l}`), closing, `Ver las ofertas: ${d.appUrl}`, '— Juan', '', `Para no recibir estos avisos: ${d.unsubscribeUrl}`].join('\n\n');
   return { subject, html, text };
 }
+
+// Correo de bienvenida al dar de alta a un miembro (transaccional: se envía una vez al activar el acceso).
+// Dice cuánto dura el acceso y con qué correo entrar: el mismo de Skool.
+export function renderBienvenida(d: { email: string; dias: number | null; venceFecha: string | null; appUrl: string }): RenderedEmail {
+  const subject = 'Ya tienes acceso a Juan Te Avisa PRO';
+  const duracion =
+    d.dias !== null && d.venceFecha
+      ? `Tu acceso dura ${plural(d.dias, 'día', 'días')} y vence el ${d.venceFecha}.`
+      : 'Tu acceso ya está activo.';
+  const paragraphs = [
+    'Hola, soy Juan.',
+    'Ya activé tu acceso a Juan Te Avisa PRO.',
+    duracion,
+    `Para entrar, usa el mismo correo con el que entras a Skool: ${d.email}.`,
+    'Si tienes alguna duda, respóndeme este correo.',
+  ];
+  const body = paragraphs.map((p) => `<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#1e293b">${escapeHtml(p)}</p>`).join('');
+  const html = `<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(subject)}</title></head>
+<body style="margin:0;background:#f1f5f9;font-family:Arial,Helvetica,sans-serif">
+<div style="max-width:560px;margin:0 auto;padding:24px 16px">
+  <div style="background:${NAVY};border-radius:12px 12px 0 0;padding:18px 24px"><span style="color:${GOLD};font-weight:700;font-size:14px;letter-spacing:0.22em">JUAN TE AVISA</span></div>
+  <div style="background:#ffffff;padding:28px 24px;border-radius:0 0 12px 12px">
+    ${body}
+    <p style="margin:24px 0"><a href="${escapeHtml(d.appUrl)}" style="display:inline-block;background:${GOLD};color:${NAVY};font-weight:700;font-size:14px;text-decoration:none;padding:12px 22px;border-radius:10px">Entrar a la app</a></p>
+    <p style="margin:0;font-size:15px;color:#1e293b">— Juan</p>
+  </div>
+  <p style="margin:16px 8px 0;font-size:11px;line-height:1.5;color:#64748b">
+    Recibes este correo porque se activó tu acceso a Juan Te Avisa PRO. Puedes responderlo: me llega a mí.
+    <a href="${escapeHtml(d.appUrl)}/privacidad" style="color:#64748b">Política de privacidad</a>.
+  </p>
+</div></body></html>`;
+  const text = [...paragraphs, `Entrar a la app: ${d.appUrl}`, '— Juan'].join('\n\n');
+  return { subject, html, text };
+}
