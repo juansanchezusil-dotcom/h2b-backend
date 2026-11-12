@@ -224,7 +224,7 @@ export async function runEngagement(opts: RunOptions): Promise<EngagementSummary
     optout: new Set((optRes.data || []).map((r) => r.id)),
     logs,
     now,
-    appUrl: process.env.APP_URL || 'https://h2b-fronted.vercel.app',
+    appUrl: process.env.APP_URL || 'https://app.juanteavisa.com',
     renewUrl: process.env.NEXT_PUBLIC_MEMBERSHIP_URL || undefined,
   });
   summary.planned = planned.map((p) => ({ email: p.email, kind: p.kind }));
@@ -294,7 +294,7 @@ export async function runEngagement(opts: RunOptions): Promise<EngagementSummary
       resumen.candidatosAcelerador,
       resumen.prioridadRenovacion,
       items,
-      `${process.env.APP_URL || 'https://h2b-fronted.vercel.app'}/admin`
+      `${process.env.APP_URL || 'https://app.juanteavisa.com'}/admin`
     );
     const { error: digestError } = await resend.emails.send({
       from: FROM(),
@@ -322,7 +322,7 @@ export async function sendSampleEmails(resend: Resend, to: string): Promise<{ se
     venceFecha: '24 de octubre',
     diasParaVencer: 6,
     renewUrl: process.env.NEXT_PUBLIC_MEMBERSHIP_URL || undefined,
-    appUrl: process.env.APP_URL || 'https://h2b-fronted.vercel.app',
+    appUrl: process.env.APP_URL || 'https://app.juanteavisa.com',
     unsubscribeUrl: `${BACKEND_URL}/api/avisos?t=ejemplo`,
   };
   const samples: { kind: EmailKind; data: TemplateData; label: string }[] = [

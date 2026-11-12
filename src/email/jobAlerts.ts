@@ -117,7 +117,7 @@ export async function runJobAlerts(opts: {
     return summary;
   }
 
-  const appUrl = process.env.APP_URL || 'https://h2b-fronted.vercel.app';
+  const appUrl = process.env.APP_URL || 'https://app.juanteavisa.com';
   const toSend = (mode === 'test' ? planned.slice(0, JOB_ALERTS.testCap) : planned).slice(0, JOB_ALERTS.perRunCap);
   for (const p of toSend) {
     // En modo real se registra ANTES de enviar: si el registro falla no se envía, así un fallo nunca repite el aviso cada día

@@ -15,7 +15,7 @@ export async function sendBienvenida(opts: { email: string; dias: number | null;
       email: opts.email,
       dias: opts.dias,
       venceFecha: opts.venceEl ? formatDate(opts.venceEl) : null,
-      appUrl: process.env.APP_URL || 'https://h2b-fronted.vercel.app',
+      appUrl: process.env.APP_URL || 'https://app.juanteavisa.com',
     });
     const { error } = await new Resend(apiKey).emails.send({
       from: FROM(),

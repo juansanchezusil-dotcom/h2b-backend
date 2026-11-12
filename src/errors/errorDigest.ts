@@ -15,7 +15,7 @@ export async function runErrorDigest(opts: { supabase: SupabaseClient; resend: R
   const { total, groups } = await loadErrorGroups(supabase, new Date(now - DAY));
   if (!total) return { sent: false, total: 0 };
 
-  const appUrl = process.env.APP_URL || 'https://h2b-fronted.vercel.app';
+  const appUrl = process.env.APP_URL || 'https://app.juanteavisa.com';
   const top = groups.slice(0, 10);
   const rows = top
     .map(

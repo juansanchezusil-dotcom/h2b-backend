@@ -99,7 +99,7 @@ export async function GET(request: Request) {
         <p>Siguiendo el sistema, movimos esta tarjeta a <strong>"No Respondido"</strong> en tu CRM.
         Esto no significa que hayas hecho algo mal — así funciona el proceso, y lo importante
         es seguir aplicando a nuevas empresas en paralelo.</p>
-        <p>Entra a tu <a href="https://h2b-fronted.vercel.app">Portal H-2B</a> para ver el detalle
+        <p>Entra a tu <a href="https://app.juanteavisa.com">Portal H-2B</a> para ver el detalle
         o volver a marcarla como activa si de pronto sí te responden.</p>
       `,
     });
@@ -159,7 +159,7 @@ export async function GET(request: Request) {
         <p>Este es tu último aviso — si no hay respuesta antes del día 21, la moveremos
         automáticamente a "No Respondido".</p>
         <p>Te recomendamos escribirle a la empresa una última vez para preguntar por el estado.</p>
-        <p>Entra a tu <a href="https://h2b-fronted.vercel.app">Portal H-2B</a> para ver el detalle.</p>
+        <p>Entra a tu <a href="https://app.juanteavisa.com">Portal H-2B</a> para ver el detalle.</p>
       `,
     });
 
@@ -225,7 +225,7 @@ export async function GET(request: Request) {
         (${app.job_title || 'vacante H-2B'}) y aún no has recibido respuesta.</p>
         <p>Movimos esta tarjeta a <strong>"Seguimiento"</strong> en tu CRM. Te recomendamos
         escribirle a la empresa para preguntar por el estado de tu postulación.</p>
-        <p>Entra a tu <a href="https://h2b-fronted.vercel.app">Portal H-2B</a> para ver el detalle
+        <p>Entra a tu <a href="https://app.juanteavisa.com">Portal H-2B</a> para ver el detalle
         y usar la plantilla de seguimiento del Kit de Inicio Rápido.</p>
       `,
     });
