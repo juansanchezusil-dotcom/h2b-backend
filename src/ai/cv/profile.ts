@@ -29,7 +29,7 @@ export function emptyProfile(): CandidateProfile {
   return {
     fullName: '', city: '', phone: '', email: '', targetRole: '', industry: '', englishLevel: '',
     route: '', experiences: [], education: [], certifications: [], languages: [], skills: [], notDone: [],
-    availability: '', passport: '',
+    availability: '', passport: '', closed: [],
   };
 }
 
@@ -68,6 +68,7 @@ export function sanitizeProfile(input: unknown): CandidateProfile {
   p.notDone = list(raw.notDone);
   p.availability = clip(raw.availability, 250);
   p.passport = raw.passport === 'yes' || raw.passport === 'no' ? raw.passport : '';
+  p.closed = list(raw.closed, 20, 30);
   p.experiences = asArray(raw.experiences).slice(0, 8).map((e, i) => cleanExperience(e, `e${i + 1}`));
   return p;
 }
@@ -87,6 +88,7 @@ export function mergeProfile(base: CandidateProfile, rawUpdates: unknown): Candi
   out.notDone = union(out.notDone, up.notDone);
   if (up.availability) out.availability = up.availability;
   if (up.passport) out.passport = up.passport;
+  out.closed = union(out.closed, up.closed, 20);
 
   const rawExps = asArray(asRaw(rawUpdates).experiences).slice(0, 8);
   rawExps.forEach((rawExp) => {
@@ -116,6 +118,10 @@ export function mergeProfile(base: CandidateProfile, rawUpdates: unknown): Candi
 // Lo que falta, decidido por código y no por el modelo. "critical" bloquea generar el CV;
 // "important" se pregunta pero no bloquea.
 export function computeGaps(p: CandidateProfile): Gap[] {
+  return rawGaps(p).filter((g) => g.level === 'critical' || !p.closed.includes(g.key));
+}
+
+function rawGaps(p: CandidateProfile): Gap[] {
   const gaps: Gap[] = [];
   if (!p.fullName) gaps.push({ key: 'fullName', level: 'critical', label: 'Tu nombre completo' });
   if (!p.targetRole) gaps.push({ key: 'targetRole', level: 'critical', label: 'El puesto al que apuntas' });

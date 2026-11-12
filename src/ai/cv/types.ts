@@ -39,6 +39,8 @@ export interface CandidateProfile {
   // El pasaporte es solo sí/no: nunca se pide ni se guarda el número.
   availability: string;
   passport: '' | 'yes' | 'no';
+  // Datos opcionales que la persona ya contestó o rechazó ("no sé", "no tengo"): no se le vuelven a preguntar.
+  closed: string[];
 }
 
 export type GapLevel = 'critical' | 'important';

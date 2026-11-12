@@ -39,9 +39,9 @@ export async function POST(request: Request) {
     const turns: InterviewTurn[] = asArray(body.turns)
       .map(asRaw)
       .flatMap((t): InterviewTurn[] =>
-        (t.role === 'user' || t.role === 'assistant') && typeof t.text === 'string' ? [{ role: t.role, text: t.text.slice(0, 1500) }] : []
+        (t.role === 'user' || t.role === 'assistant') && typeof t.text === 'string' ? [{ role: t.role, text: t.text.slice(0, 3000) }] : []
       )
-      .slice(-8);
+      .slice(-14);
     const pastedCv: string = typeof body.pastedCv === 'string' ? body.pastedCv.trim() : '';
     const clip = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
     const job =
@@ -95,8 +95,17 @@ export async function POST(request: Request) {
     }
 
     const updates = asRaw(parsed.profile_updates);
-    const merged = mergeProfile(profile, { ...updates, route: parsed.route || updates.route });
+    // El modelo avisa qué datos de la lista ya quedaron contestados o rechazados; solo se aceptan claves de datos opcionales
+    const OPTIONAL_KEYS = ['route', 'phone', 'city', 'tools', 'autonomy', 'availability', 'passport'];
+    const closedNow = asArray(parsed.closed_gap_keys).filter((k): k is string => typeof k === 'string' && OPTIONAL_KEYS.includes(k));
+    const merged = mergeProfile(profile, { ...updates, route: parsed.route || updates.route, closed: [...asArray(updates.closed), ...closedNow] });
     const gaps = computeGaps(merged);
+    // El botón de generar el CV solo se activa cuando el asistente ya cerró la entrevista: sin datos críticos faltantes,
+    // al menos una respuesta de la persona, y (el asistente dice que terminó, no quedan preguntas importantes o ya van 8 respuestas)
+    const userTurns = turns.filter((t) => t.role === 'user').length;
+    const noCritical = !gaps.some((g) => g.level === 'critical');
+    const noImportant = !gaps.some((g) => g.level === 'important');
+    const ready = noCritical && userTurns >= 1 && (parsed.done === true || noImportant || userTurns >= 8);
     const reply = typeof parsed.reply_es === 'string' ? parsed.reply_es.trim().slice(0, 1200) : '';
 
     return NextResponse.json(
@@ -104,7 +113,7 @@ export async function POST(request: Request) {
         reply_es: reply || 'Cuéntame un poco más sobre tu experiencia.',
         profile: merged,
         gaps,
-        ready: !gaps.some((g) => g.level === 'critical'),
+        ready,
       },
       { status: 200, headers }
     );

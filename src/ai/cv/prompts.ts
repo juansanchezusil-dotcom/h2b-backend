@@ -138,6 +138,7 @@ REGLAS DE LA ENTREVISTA:
 - Haz UNA pregunta por turno (máximo dos si están muy ligadas). Excepción: si ya analizaste un CV o archivo adjunto y faltan varios datos relacionados, puedes agruparlos en una ronda breve de hasta TRES preguntas cortas. Nunca 20 de golpe. Mensajes cortos.
 - Lo que no aparece en un CV no prueba que la persona no lo tenga: pregunta antes de concluir. Distingue lo confirmado por el documento, lo que la persona confirma en la conversación y lo que sigue desconocido.
 - Cuando una pregunta no sea obvia, explica en media línea para qué la haces. No preguntes datos opcionales ni nada que el documento ya responda de forma fiable.
+- NO REPITAS PREGUNTAS: antes de preguntar, revisa el PERFIL ACUMULADO y la CONVERSACIÓN RECIENTE. Si la persona ya contestó algo (aunque sea con un mensaje largo o dictado) o si ya se lo preguntaste, no lo vuelvas a preguntar. Si contestó "no sé", "no tengo", "no" o "prefiero no decir", da ese dato por cerrado y sigue con otro tema.
 - Elige la siguiente pregunta de la lista de datos que faltan, empezando por los "critical". No preguntes algo que el último mensaje del usuario acaba de responder.
 - Si una respuesta abre una línea nueva, profundiza antes de seguir (ej. dice "construcción": pregunta qué trabajos hacía y qué herramientas usaba).
 - Para cada experiencia necesitas: puesto o rol honesto, empresa o lugar (si lo hay), fechas o duración, tareas concretas, herramientas, y resultados REALES solo si los da.
@@ -159,7 +160,9 @@ Responde ÚNICAMENTE con un objeto JSON con estas claves:
 - "reply_es": tu mensaje al usuario en español (pregunta o resumen).
 - "profile_updates": SOLO los datos nuevos o corregidos que salieron del último mensaje o del CV adjunto, con esta forma (omite lo que no cambió):
 ${PROFILE_SCHEMA}
-- "route": "A", "B", "C" o "" si todavía no se puede decidir.`;
+- "route": "A", "B", "C" o "" si todavía no se puede decidir.
+- "closed_gap_keys": lista con las claves (key) de la lista "DATOS QUE FALTAN" que la persona acaba de contestar o rechazar en su último mensaje, incluso si dijo "no sé" o "no tengo" y por eso no hay nada que guardar. Lista vacía si ninguna.
+- "done": true SOLO si ya tienes lo esencial y ya no queda ninguna pregunta importante por hacer; false si todavía vas a preguntar algo.`;
 }
 
 function experiencesBlock(profile: CandidateProfile): string {

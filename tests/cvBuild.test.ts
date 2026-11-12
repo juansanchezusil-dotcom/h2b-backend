@@ -149,6 +149,23 @@ describe('computeGaps', () => {
   });
 });
 
+describe('datos cerrados', () => {
+  const keysOf = (p: CandidateProfile) => computeGaps(p).map((gap) => gap.key);
+
+  it('no vuelve a pedir un dato opcional que la persona ya contestó o rechazó', () => {
+    expect(keysOf(emptyProfile())).toContain('passport');
+    const closed = mergeProfile(emptyProfile(), { closed: ['passport', 'tools'] });
+    expect(keysOf(closed)).not.toContain('passport');
+    expect(keysOf(closed)).not.toContain('tools');
+  });
+
+  it('los datos críticos nunca se dan por cerrados', () => {
+    const closed = mergeProfile(emptyProfile(), { closed: ['fullName', 'experience'] });
+    expect(keysOf(closed)).toContain('fullName');
+    expect(keysOf(closed)).toContain('experience');
+  });
+});
+
 describe('mergeProfile', () => {
   it('agrega datos a la misma experiencia por id sin duplicarla', () => {
     const merged = mergeProfile(profile(), { experiences: [{ id: 'e1', tools: ['Nivel'] }] });
