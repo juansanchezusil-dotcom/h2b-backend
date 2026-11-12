@@ -102,6 +102,14 @@ describe('plan e ingreso estimado', () => {
     expect(ingresoEstimado(prueba, now).excluidos).toBe(1);
   });
 
+  it('no cuenta las cortesías como ingreso y las informa aparte', () => {
+    const { miembros } = fixture();
+    const cortesia = miembros.map((m) => (m.email === 'luis@gmail.com' ? { ...m, origen: 'cortesia' } : m));
+    const r = ingresoEstimado(cortesia, now);
+    expect(r.cortesias).toBe(1);
+    expect(r.porPlan.mensual.n).toBe(2);
+  });
+
   it('el anual dado de alta desde el 28-nov cuesta 296', () => {
     const { miembros } = fixture();
     const eva = { ...miembros.find((m) => m.email === 'eva@gmail.com')!, diasDesdeAlta: 5 };

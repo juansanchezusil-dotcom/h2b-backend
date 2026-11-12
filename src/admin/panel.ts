@@ -100,13 +100,19 @@ export function etapaOf(counts: Record<string, number>): Etapa {
 }
 
 // ---------- ingreso estimado ----------
-// Las cuentas de prueba (origen "prueba") y las del administrador no son ingreso: se excluyen y se cuentan aparte.
+// Las cuentas de prueba (origen "prueba"), las cortesías (origen "cortesia", acceso gratis) y las del administrador
+// no son ingreso: se excluyen y se cuentan aparte.
 export function ingresoEstimado(miembros: Miembro[], now: number, excluirCorreos: Set<string> = new Set()) {
   const por = { mensual: { n: 0, usd: 0 }, anual: { n: 0, usd: 0 } };
   let sinPlan = 0;
   let excluidos = 0;
+  let cortesias = 0;
   for (const m of miembros) {
     if (m.diasParaVencer !== null && m.diasParaVencer < 0) continue; // vencidos no suman
+    if (m.origen === 'cortesia') {
+      cortesias++;
+      continue;
+    }
     if (m.origen === 'prueba' || excluirCorreos.has(m.email.trim().toLowerCase())) {
       excluidos++;
       continue;
@@ -127,7 +133,7 @@ export function ingresoEstimado(miembros: Miembro[], now: number, excluirCorreos
     }
   }
   const total = Math.round((por.mensual.usd + por.anual.usd) * 100) / 100;
-  return { total, porPlan: { mensual: { n: por.mensual.n, usd: Math.round(por.mensual.usd * 100) / 100 }, anual: { n: por.anual.n, usd: Math.round(por.anual.usd * 100) / 100 } }, sinPlan, excluidos };
+  return { total, porPlan: { mensual: { n: por.mensual.n, usd: Math.round(por.mensual.usd * 100) / 100 }, anual: { n: por.anual.n, usd: Math.round(por.anual.usd * 100) / 100 } }, sinPlan, excluidos, cortesias };
 }
 
 // ---------- filtros ----------
@@ -366,7 +372,7 @@ export function buildPanel(data: PanelData, f: PanelFilters, vista: string, most
     totalMiembros: data.miembros.length,
     definiciones: {
       salud: 'Puntaje de 0 a 100: 45 puntos por la proporción de vigentes activos esta semana, 35 por los que ya postulan, 20 por no tener errores en 24 h (se descuenta 2 por error, hasta 10). Con pocos miembros es solo una guía.',
-      ingreso: 'Estimado, no es cobro real. Miembros vigentes por su plan: mensual $37; anual $259 si se dio de alta antes del 28-nov-2026 y $296 después, dividido entre 12. El plan se deduce de la duración del acceso (300 días o más = anual). No cuenta cuentas de prueba ni la tuya.',
+      ingreso: 'Estimado, no es cobro real. Miembros vigentes por su plan: mensual $37; anual $259 si se dio de alta antes del 28-nov-2026 y $296 después, dividido entre 12. El plan se deduce de la duración del acceso (300 días o más = anual). No cuenta cortesías (accesos gratis), cuentas de prueba ni la tuya.',
     },
   };
 

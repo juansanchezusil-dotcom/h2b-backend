@@ -5,6 +5,10 @@ import { sendBienvenida } from '../../../../src/email/bienvenida';
 const DAY_MS = 24 * 60 * 60 * 1000;
 const normalize = (email: unknown) => String(email || '').trim().toLowerCase();
 
+// "cortesia" = acceso gratis, no cuenta como ingreso. Si la petición no lo indica, se conserva el origen que ya tenía.
+const origenFinal = (cortesia: unknown, actual: string | null | undefined) =>
+  cortesia === true ? 'cortesia' : cortesia === false ? 'manual' : actual || 'manual';
+
 // Lista de membresías, las que vencen antes primero
 export async function GET(request: Request) {
   const denied = await requireAdmin(request);
@@ -33,9 +37,10 @@ export async function POST(request: Request) {
 
   // Acceso indefinido: sin fecha de vencimiento
   if (body.indefinido === true) {
+    const { data: indef } = await adminClient().from('accesos').select('origen').eq('email', email).maybeSingle();
     const { error } = await adminClient()
       .from('accesos')
-      .upsert({ email, activo: true, vence_el: null, origen: 'manual' }, { onConflict: 'email' });
+      .upsert({ email, activo: true, vence_el: null, origen: origenFinal(body.cortesia, indef?.origen) }, { onConflict: 'email' });
     if (error) {
       console.error('Error guardando acceso indefinido:', error);
       return NextResponse.json({ error: 'No se pudo guardar.' }, { status: 500 });
@@ -48,15 +53,16 @@ export async function POST(request: Request) {
   }
 
   const supabase = adminClient();
-  const { data: current } = await supabase.from('accesos').select('vence_el, activo').eq('email', email).maybeSingle();
+  const { data: current } = await supabase.from('accesos').select('vence_el, activo, origen').eq('email', email).maybeSingle();
   const currentEnd = current?.vence_el ? new Date(current.vence_el).getTime() : 0;
   const base = Math.max(Date.now(), currentEnd);
   // Bienvenida solo si no tenía un acceso vigente (alta nueva o reactivación); una renovación no la repite
   const yaVigente = !!current?.activo && (!current.vence_el || currentEnd > Date.now());
   const venceEl = new Date(base + dias * DAY_MS).toISOString();
+  const origen = origenFinal(body.cortesia, current?.origen);
 
   const { error } = await supabase.from('accesos').upsert(
-    { email, activo: true, vence_el: venceEl, origen: 'manual' },
+    { email, activo: true, vence_el: venceEl, origen },
     { onConflict: 'email' }
   );
   if (error) {
@@ -80,6 +86,26 @@ export async function DELETE(request: Request) {
   if (error) {
     console.error('Error revocando acceso:', error);
     return NextResponse.json({ error: 'No se pudo revocar.' }, { status: 500 });
+  }
+  return NextResponse.json({ ok: true });
+}
+
+// Marca o desmarca un acceso como cortesía (gratis) sin tocar sus fechas
+export async function PATCH(request: Request) {
+  const denied = await requireAdmin(request);
+  if (denied) return denied;
+
+  const body = await request.json().catch(() => ({}));
+  const email = normalize(body.email);
+  if (!email || typeof body.cortesia !== 'boolean') return NextResponse.json({ error: 'Datos inválidos' }, { status: 400 });
+
+  const { error } = await adminClient()
+    .from('accesos')
+    .update({ origen: body.cortesia ? 'cortesia' : 'manual' })
+    .eq('email', email);
+  if (error) {
+    console.error('Error marcando cortesía:', error);
+    return NextResponse.json({ error: 'No se pudo guardar.' }, { status: 500 });
   }
   return NextResponse.json({ ok: true });
 }
