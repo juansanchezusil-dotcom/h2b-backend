@@ -21,7 +21,7 @@ export async function GET(request: Request) {
   return NextResponse.json({ accesos: data });
 }
 
-// Da de alta o renueva: suma `dias` desde hoy, o desde el vencimiento actual si todavía no venció
+// Da de alta o renueva (o deja indefinido con `indefinido: true`): suma `dias` desde hoy, o desde el vencimiento actual si todavía no venció
 export async function POST(request: Request) {
   const denied = await requireAdmin(request);
   if (denied) return denied;
@@ -30,6 +30,19 @@ export async function POST(request: Request) {
   const email = normalize(body.email);
   const dias = Number(body.dias ?? 30);
   if (!email.includes('@')) return NextResponse.json({ error: 'Correo inválido' }, { status: 400 });
+
+  // Acceso indefinido: sin fecha de vencimiento
+  if (body.indefinido === true) {
+    const { error } = await adminClient()
+      .from('accesos')
+      .upsert({ email, activo: true, vence_el: null, origen: 'manual' }, { onConflict: 'email' });
+    if (error) {
+      console.error('Error guardando acceso indefinido:', error);
+      return NextResponse.json({ error: 'No se pudo guardar.' }, { status: 500 });
+    }
+    return NextResponse.json({ ok: true });
+  }
+
   if (!Number.isFinite(dias) || dias < 1 || dias > 3650) {
     return NextResponse.json({ error: 'Días inválidos (1 a 3650)' }, { status: 400 });
   }
