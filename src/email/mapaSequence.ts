@@ -11,6 +11,7 @@ import { leadUnsubscribeUrl } from './unsubscribe';
 export const MASTERCLASS_URL = 'https://juanteavisa.com/masterclass-h2b/';
 export const MASTERCLASS_LIVE_URL = 'https://www.youtube.com/watch?v=NQ0ql7zN87w';
 export const MAPA_URL = 'https://mapa.juanteavisa.com';
+export const SKOOL_URL = 'https://www.skool.com/busca-tu-patrocinador-h2b-2085/about';
 
 // La masterclass es el 25 de noviembre de 2026 a las 7:00 p. m. (hora de Perú). El proceso diario corre a
 // las 12:00 UTC (7:00 a. m. en Perú), así que "desde el día X" significa la mañana de ese día.
@@ -70,7 +71,7 @@ export async function runMapaSequence(opts: { supabase: SupabaseClient; resend: 
 
   for (const lead of (data || []) as Lead[]) {
     const url = leadUnsubscribeUrl(lead.id);
-    const mail = renderMapaSequence(slot.step, { nombre: lead.nombre, masterclassUrl: MASTERCLASS_URL, liveUrl: MASTERCLASS_LIVE_URL, mapaUrl: MAPA_URL, unsubscribeUrl: url });
+    const mail = renderMapaSequence(slot.step, { nombre: lead.nombre, masterclassUrl: MASTERCLASS_URL, liveUrl: MASTERCLASS_LIVE_URL, mapaUrl: MAPA_URL, skoolUrl: SKOOL_URL, unsubscribeUrl: url });
     const { error: sendError } = await resend.emails.send({
       from: FROM(),
       to: lead.email,

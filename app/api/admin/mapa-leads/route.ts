@@ -4,7 +4,7 @@ import { adminClient, requireAdmin } from '../../../../src/admin/auth';
 import { renderMapaReminder } from '../../../../src/email/templates';
 import { leadUnsubscribeUrl } from '../../../../src/email/unsubscribe';
 import { renderMapaSequence } from '../../../../src/email/templates';
-import { SEQUENCE, MASTERCLASS_URL as SEQ_MASTERCLASS_URL, MASTERCLASS_LIVE_URL, MAPA_URL, sequenceEnabled } from '../../../../src/email/mapaSequence';
+import { SEQUENCE, MASTERCLASS_URL as SEQ_MASTERCLASS_URL, MASTERCLASS_LIVE_URL, MAPA_URL, SKOOL_URL, sequenceEnabled } from '../../../../src/email/mapaSequence';
 
 const MASTERCLASS_URL = 'https://juanteavisa.com/masterclass-h2b/';
 const FROM = () => process.env.ENGAGEMENT_FROM || 'Juan Te Avisa <juan@mail.juanteavisa.com>';
@@ -53,7 +53,7 @@ export async function POST(request: Request) {
     const to = (process.env.ADMIN_EMAILS || '').split(',')[0]?.trim();
     if (!to) return NextResponse.json({ error: 'Falta ADMIN_EMAILS' }, { status: 500 });
     const paso = Number(body.paso) || 1;
-    const sample = { nombre: 'Ana Pérez', masterclassUrl: SEQ_MASTERCLASS_URL, liveUrl: MASTERCLASS_LIVE_URL, mapaUrl: MAPA_URL, unsubscribeUrl: 'https://h2b-backend-three.vercel.app/api/avisos?t=ejemplo' };
+    const sample = { nombre: 'Ana Pérez', masterclassUrl: SEQ_MASTERCLASS_URL, liveUrl: MASTERCLASS_LIVE_URL, mapaUrl: MAPA_URL, skoolUrl: SKOOL_URL, unsubscribeUrl: 'https://h2b-backend-three.vercel.app/api/avisos?t=ejemplo' };
     const r = paso >= 2 && paso <= 4 ? renderMapaSequence(paso, sample) : renderMapaReminder({ nombre: 'Ana Pérez', masterclassUrl: MASTERCLASS_URL, unsubscribeUrl: sample.unsubscribeUrl });
     const { error } = await resend.emails.send({ from: FROM(), to, subject: `[EJEMPLO · paso ${paso}] ` + r.subject, html: r.html, text: r.text, replyTo });
     if (error) return NextResponse.json({ error: 'Resend rechazó el correo de prueba.' }, { status: 502 });

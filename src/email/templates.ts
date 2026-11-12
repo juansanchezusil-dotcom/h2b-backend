@@ -227,12 +227,14 @@ export function renderMapaReminder(d: { nombre: string | null; masterclassUrl: s
 // inventada (las fechas son las reales), sin promesas de resultado y con la baja a la vista.
 export function renderMapaSequence(
   step: number,
-  d: { nombre: string | null; masterclassUrl: string; liveUrl: string; mapaUrl: string; unsubscribeUrl: string }
+  d: { nombre: string | null; masterclassUrl: string; liveUrl: string; mapaUrl: string; unsubscribeUrl: string; skoolUrl?: string }
 ): RenderedEmail {
   const hola = firstName(d.nombre) ? `Hola ${firstName(d.nombre)}, soy Juan.` : 'Hola, soy Juan.';
   let subject = '';
   let paragraphs: string[] = [];
   let button = { label: 'Reservar mi lugar', url: d.masterclassUrl };
+  // Enlace secundario (texto subrayado debajo del botón): solo el último paso lo usa
+  let secondary: { label: string; url: string } | null = null;
 
   if (step === 2) {
     subject = 'Esto vas a armar en la masterclass del 25 de noviembre';
@@ -258,6 +260,10 @@ export function renderMapaSequence(
       'La masterclass ya pasó. Si estuviste, ya tienes tu plan de 3 semanas y tu dashboard para empezar.',
       'Si no pudiste conectarte, respóndeme este correo y te cuento cómo ponerte al día. Mientras tanto, puedes armar tu Mapa H2B desde aquí.',
     ];
+    if (d.skoolUrl) {
+      paragraphs.push('Y si quieres seguir con la app completa (empresas con historial, ofertas actualizadas, tu Mapa personal, el Reto de 30 días y un CRM para tus postulaciones), está en la comunidad de Juan Te Avisa en Skool.');
+      secondary = { label: 'Unirme a la comunidad', url: d.skoolUrl };
+    }
   }
 
   const body = paragraphs.map((p) => `<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#1e293b">${escapeHtml(p)}</p>`).join('');
@@ -269,6 +275,7 @@ export function renderMapaSequence(
   <div style="background:#ffffff;padding:28px 24px;border-radius:0 0 12px 12px">
     ${body}
     <p style="margin:24px 0"><a href="${escapeHtml(button.url)}" style="display:inline-block;background:${GOLD};color:${NAVY};font-weight:700;font-size:14px;text-decoration:none;padding:12px 22px;border-radius:10px">${escapeHtml(button.label)}</a></p>
+    ${secondary ? `<p style="margin:0 0 24px;font-size:14px"><a href="${escapeHtml(secondary.url)}" style="color:#0B4079;font-weight:700;text-decoration:underline">${escapeHtml(secondary.label)}</a></p>` : ''}
     <p style="margin:0;font-size:15px;color:#1e293b">— Juan</p>
   </div>
   <p style="margin:16px 8px 0;font-size:11px;line-height:1.5;color:#64748b">
@@ -279,6 +286,7 @@ export function renderMapaSequence(
   const text = [
     ...paragraphs,
     `${button.label}: ${button.url}`,
+    ...(secondary ? [`${secondary.label}: ${secondary.url}`] : []),
     '— Juan',
     '',
     `Recibes este correo porque dejaste tu correo en el Mapa H2B de Juan Te Avisa y aceptaste que te escribamos. Para no recibir más mensajes: ${d.unsubscribeUrl}`,
