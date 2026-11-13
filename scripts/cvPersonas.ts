@@ -176,7 +176,11 @@ async function interviewTurn(profile: CandidateProfile, turns: InterviewTurn[], 
     config: { responseMimeType: 'application/json' },
   });
   const parsed = JSON.parse(text || '{}');
-  const merged = mergeProfile(profile, { ...(parsed.profile_updates || {}), route: parsed.route || parsed.profile_updates?.route });
+  // Igual que la ruta real: claves cerradas por el modelo (solo opcionales) y el tiempo de la experiencia deja de bloquear tras 6 respuestas
+  const OPTIONAL_KEYS = ['route', 'phone', 'teams', 'experience_time', 'city', 'tools', 'autonomy', 'availability', 'passport'];
+  const closedNow = (Array.isArray(parsed.closed_gap_keys) ? parsed.closed_gap_keys : []).filter((k: unknown): k is string => typeof k === 'string' && OPTIONAL_KEYS.includes(k));
+  const staleTime = turns.filter((t) => t.role === 'user').length >= 6 ? ['experience_time'] : [];
+  const merged = mergeProfile(profile, { ...(parsed.profile_updates || {}), route: parsed.route || parsed.profile_updates?.route, closed: [...closedNow, ...staleTime] });
   const gaps = computeGaps(merged);
   return { reply: String(parsed.reply_es || '').trim(), profile: merged, ready: !gaps.some((g) => g.level === 'critical'), gaps };
 }

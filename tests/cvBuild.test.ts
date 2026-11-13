@@ -140,6 +140,19 @@ describe('computeGaps', () => {
     expect(critical(profile({ englishLevel: '' }))).toContain('englishLevel');
   });
 
+  it('si la persona no recuerda el tiempo, se cierra ese dato y ya no bloquea', () => {
+    const p = profile({ closed: ['experience_time'] });
+    p.experiences[0] = { ...p.experiences[0], dates: '', duration: '' };
+    expect(critical(p)).not.toContain('experience_time');
+    expect(computeGaps(p).some((g) => g.key === 'experience_time')).toBe(false);
+  });
+
+  it('el perfil sin Teams lo pregunta como importante, no crítico', () => {
+    const gap = computeGaps(profile({ teams: '' })).find((g) => g.key === 'teams');
+    expect(gap?.level).toBe('important');
+    expect(computeGaps(profile({ teams: 'ana@outlook.com' })).some((g) => g.key === 'teams')).toBe(false);
+  });
+
   it('si a la experiencia solo le falta el tiempo, lo pide por su nombre', () => {
     const p = profile();
     p.experiences[0] = { ...p.experiences[0], dates: '', duration: '' };

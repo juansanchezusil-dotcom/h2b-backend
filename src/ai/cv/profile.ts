@@ -126,7 +126,7 @@ function rawGaps(p: CandidateProfile): Gap[] {
   const gaps: Gap[] = [];
   if (!p.fullName) gaps.push({ key: 'fullName', level: 'critical', label: 'Tu nombre completo' });
   if (!p.targetRole) gaps.push({ key: 'targetRole', level: 'critical', label: 'El puesto al que apuntas' });
-  const complete = p.experiences.some((e) => e.title && e.tasks.length > 0 && (e.dates || e.duration));
+  const complete = p.experiences.some((e) => e.title && e.tasks.length > 0 && (e.dates || e.duration || p.closed.includes('experience_time')));
   if (!complete) {
     // Si ya hay una experiencia casi lista, se nombra la pieza que le falta (si no, el modelo pregunta otras cosas
     // y la entrevista nunca llega a "lista": pasó con quien solo tiene experiencia en casa, sin fechas)

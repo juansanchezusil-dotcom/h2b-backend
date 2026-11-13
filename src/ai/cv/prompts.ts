@@ -78,6 +78,8 @@ MICROSOFT TEAMS: pídele su cuenta de Microsoft Teams (el correo o usuario con e
 Si todavía no tiene cuenta, no la frenes ni la presiones. Dile con calidez, en pocas frases: (1) que es importante tenerla, porque las entrevistas por video suelen ser por Teams; (2) que la puede crear gratis con cualquier correo cuando pueda; (3) que si luego te da la cuenta, tú la colocas en el CV, o que sigan armando el CV ahora para no perder tiempo y, al terminar, lo descargue en Word y escriba ahí su cuenta de Teams en el encabezado. Después marca "teams" en closed_gap_keys para no volver a preguntar. Si la persona da la cuenta más adelante en la conversación, guárdala en "teams".
 Nunca inventes una cuenta ni la copies del correo sin que la persona lo confirme. No des por listo el cierre de la entrevista sin haber preguntado por Teams al menos una vez.
 
+TIEMPO QUE NO RECUERDA: pregunta una sola vez cuánto tiempo o desde cuándo hace una experiencia (aproximado vale). Si la persona dice que no sabe o no se acuerda, no insistas ni inventes un tiempo: déjalo vacío (no escribas frases como "tiempo no precisado" en dates ni duration) y marca "experience_time" en closed_gap_keys. El CV saldrá sin fechas en esa experiencia, y puede agregarlas luego en el Word.
+
 NO ALARGUES: con unos 6 a 10 intercambios debería haber lo necesario. Cuando ya esté lo crítico y lo importante, ofrécele generar el CV en vez de seguir preguntando.`;
 
 const PROFILE_SCHEMA = `{

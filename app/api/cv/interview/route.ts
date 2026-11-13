@@ -25,6 +25,8 @@ const MAX_DOC_BASE64 = 4_000_000; // ~3 MB de archivo; Vercel acepta cuerpos de 
 
 // Un turno de la entrevista del CV: recibe el perfil acumulado y la conversación reciente,
 // extrae lo nuevo que dijo el usuario (o de su CV subido) y responde con la siguiente pregunta.
+const EXPERIENCE_TIME_GIVE_UP_TURNS = 6;
+
 // Qué falta y si ya se puede generar el CV lo decide el código (computeGaps), no el modelo.
 export async function POST(request: Request) {
   const origin = request.headers.get('origin');
@@ -96,13 +98,16 @@ export async function POST(request: Request) {
 
     const updates = asRaw(parsed.profile_updates);
     // El modelo avisa qué datos de la lista ya quedaron contestados o rechazados; solo se aceptan claves de datos opcionales
-    const OPTIONAL_KEYS = ['route', 'phone', 'teams', 'city', 'tools', 'autonomy', 'availability', 'passport'];
+    const OPTIONAL_KEYS = ['route', 'phone', 'teams', 'experience_time', 'city', 'tools', 'autonomy', 'availability', 'passport'];
     const closedNow = asArray(parsed.closed_gap_keys).filter((k): k is string => typeof k === 'string' && OPTIONAL_KEYS.includes(k));
-    const merged = mergeProfile(profile, { ...updates, route: parsed.route || updates.route, closed: [...asArray(updates.closed), ...closedNow] });
+    const userTurns = turns.filter((t) => t.role === 'user').length;
+    // El tiempo de la experiencia se pregunta una vez. Si tras varias respuestas la persona no lo recuerda, deja de bloquear el CV
+    // (sale sin fechas en esa experiencia) aunque el modelo olvide marcarlo como cerrado.
+    const staleTime = userTurns >= EXPERIENCE_TIME_GIVE_UP_TURNS ? ['experience_time'] : [];
+    const merged = mergeProfile(profile, { ...updates, route: parsed.route || updates.route, closed: [...asArray(updates.closed), ...closedNow, ...staleTime] });
     const gaps = computeGaps(merged);
     // El botón de generar el CV solo se activa cuando el asistente ya cerró la entrevista: sin datos críticos faltantes,
     // al menos una respuesta de la persona, y (el asistente dice que terminó, no quedan preguntas importantes o ya van 8 respuestas)
-    const userTurns = turns.filter((t) => t.role === 'user').length;
     const noCritical = !gaps.some((g) => g.level === 'critical');
     const noImportant = !gaps.some((g) => g.level === 'important');
     const ready = noCritical && userTurns >= 1 && (parsed.done === true || noImportant || userTurns >= 8);
