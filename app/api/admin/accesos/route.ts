@@ -9,20 +9,43 @@ const normalize = (email: unknown) => String(email || '').trim().toLowerCase();
 const origenFinal = (cortesia: unknown, actual: string | null | undefined) =>
   cortesia === true ? 'cortesia' : cortesia === false ? 'manual' : actual || 'manual';
 
-// Lista de membresías, las que vencen antes primero
+// Lista de membresías, las más recientes primero. Cada una trae su día de ingreso y su última visita
+// (profiles.last_seen_at, o el último inicio de sesión) para saber si ya entró a la app.
 export async function GET(request: Request) {
   const denied = await requireAdmin(request);
   if (denied) return denied;
 
-  const { data, error } = await adminClient()
+  const supabase = adminClient();
+  const { data, error } = await supabase
     .from('accesos')
-    .select('email, activo, vence_el, origen')
-    .order('vence_el', { ascending: true, nullsFirst: true });
+    .select('email, activo, vence_el, origen, created_at')
+    .order('created_at', { ascending: false, nullsFirst: false });
   if (error) {
     console.error('Error listando accesos:', error);
     return NextResponse.json({ error: 'No se pudo cargar la lista.' }, { status: 500 });
   }
-  return NextResponse.json({ accesos: data });
+
+  const users = new Map<string, { id: string; last_sign_in_at: string | null }>();
+  for (let page = 1; page <= 10; page++) {
+    const { data: list, error: usersError } = await supabase.auth.admin.listUsers({ page, perPage: 200 });
+    if (usersError) {
+      console.error('Error leyendo usuarios para la última visita:', usersError);
+      break;
+    }
+    for (const u of list.users) {
+      if (u.email) users.set(u.email.trim().toLowerCase(), { id: u.id, last_sign_in_at: u.last_sign_in_at ?? null });
+    }
+    if (list.users.length < 200) break;
+  }
+  const { data: profs } = await supabase.from('profiles').select('id, last_seen_at');
+  const seen = new Map((profs || []).map((p) => [p.id, p.last_seen_at as string | null]));
+
+  const accesos = (data || []).map((a) => {
+    const u = users.get(String(a.email).trim().toLowerCase());
+    const ultima_visita = (u && seen.get(u.id)) || u?.last_sign_in_at || null;
+    return { ...a, ultima_visita };
+  });
+  return NextResponse.json({ accesos });
 }
 
 // Da de alta o renueva (o deja indefinido con `indefinido: true`): suma `dias` desde hoy, o desde el vencimiento actual si todavía no venció
