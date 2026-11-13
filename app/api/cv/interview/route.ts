@@ -96,7 +96,7 @@ export async function POST(request: Request) {
 
     const updates = asRaw(parsed.profile_updates);
     // El modelo avisa qué datos de la lista ya quedaron contestados o rechazados; solo se aceptan claves de datos opcionales
-    const OPTIONAL_KEYS = ['route', 'phone', 'city', 'tools', 'autonomy', 'availability', 'passport'];
+    const OPTIONAL_KEYS = ['route', 'phone', 'teams', 'city', 'tools', 'autonomy', 'availability', 'passport'];
     const closedNow = asArray(parsed.closed_gap_keys).filter((k): k is string => typeof k === 'string' && OPTIONAL_KEYS.includes(k));
     const merged = mergeProfile(profile, { ...updates, route: parsed.route || updates.route, closed: [...asArray(updates.closed), ...closedNow] });
     const gaps = computeGaps(merged);

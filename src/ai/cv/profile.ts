@@ -27,7 +27,7 @@ function union(a: string[], b: string[], maxItems = 15): string[] {
 
 export function emptyProfile(): CandidateProfile {
   return {
-    fullName: '', city: '', phone: '', email: '', targetRole: '', industry: '', englishLevel: '',
+    fullName: '', city: '', phone: '', email: '', teams: '', targetRole: '', industry: '', englishLevel: '',
     route: '', experiences: [], education: [], certifications: [], languages: [], skills: [], notDone: [],
     availability: '', passport: '', closed: [],
   };
@@ -57,6 +57,7 @@ export function sanitizeProfile(input: unknown): CandidateProfile {
   p.city = clip(raw.city, 100);
   p.phone = clip(raw.phone, 40);
   p.email = clip(raw.email, 120);
+  p.teams = clip(raw.teams, 120);
   p.targetRole = clip(raw.targetRole, 100);
   p.industry = clip(raw.industry, 100);
   p.englishLevel = clip(raw.englishLevel, 60);
@@ -78,7 +79,7 @@ export function sanitizeProfile(input: unknown): CandidateProfile {
 export function mergeProfile(base: CandidateProfile, rawUpdates: unknown): CandidateProfile {
   const up = sanitizeProfile(rawUpdates);
   const out: CandidateProfile = JSON.parse(JSON.stringify(base));
-  const scalars = ['fullName', 'city', 'phone', 'email', 'targetRole', 'industry', 'englishLevel'] as const;
+  const scalars = ['fullName', 'city', 'phone', 'email', 'teams', 'targetRole', 'industry', 'englishLevel'] as const;
   for (const k of scalars) if (up[k]) out[k] = up[k];
   if (up.route) out.route = up.route;
   out.education = union(out.education, up.education);
@@ -144,6 +145,8 @@ function rawGaps(p: CandidateProfile): Gap[] {
   // El empleador mira el inglés y el CV lo declara: sin este dato las recomendaciones terminaban pidiéndolo después
   if (!p.englishLevel) gaps.push({ key: 'englishLevel', level: 'critical', label: 'Tu nivel de inglés (nada, básico, intermedio o avanzado)' });
   if (!p.phone) gaps.push({ key: 'phone', level: 'important', label: 'Un teléfono de contacto' });
+  // Muchos empleadores H-2B entrevistan por Microsoft Teams. No bloquea (no todos tienen cuenta), pero se pregunta siempre
+  if (!p.teams) gaps.push({ key: 'teams', level: 'important', label: 'Tu cuenta de Microsoft Teams (correo o usuario): las entrevistas por video suelen ser por Teams. Si no la tienes aún, se crea gratis y puedes seguir sin ella' });
   if (!p.city) gaps.push({ key: 'city', level: 'important', label: 'Tu ciudad y país' });
   if (!p.experiences.some((e) => e.tools.length > 0)) {
     gaps.push({ key: 'tools', level: 'important', label: 'Herramientas o equipos que has usado' });

@@ -24,6 +24,7 @@ export interface CandidateProfile {
   city: string;
   phone: string;
   email: string;
+  teams: string; // cuenta de Microsoft Teams (correo o usuario) para las entrevistas por video
   targetRole: string;
   industry: string;
   englishLevel: string;

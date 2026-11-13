@@ -13,7 +13,7 @@ export interface CvExperience {
   bullets: CvBullet[];
 }
 export interface BuiltCv {
-  header: { fullName: string; city: string; phone: string; email: string };
+  header: { fullName: string; city: string; phone: string; email: string; teams: string };
   headline: string; // el puesto al que apunta, en inglés
   summary: string;
   experiences: CvExperience[];
@@ -151,7 +151,7 @@ export function buildVerifiedCv(profile: CandidateProfile, modelOutput: unknown)
   return {
     removed,
     cv: {
-      header: { fullName: profile.fullName, city: profile.city, phone: profile.phone, email: profile.email },
+      header: { fullName: profile.fullName, city: profile.city, phone: profile.phone, email: profile.email, teams: profile.teams },
       headline: headlineEn && !/\d/.test(headlineEn) ? headlineEn : profile.targetRole,
       summary: anyoneLeads ? keptSentences.join(' ') : softenManaging(keptSentences.join(' ')),
       experiences,
@@ -171,7 +171,7 @@ export function cvToText(cv: BuiltCv): string {
   const out: string[] = [];
   out.push(cv.header.fullName.toUpperCase());
   if (cv.headline) out.push(cv.headline);
-  const contact = [cv.header.city, cv.header.phone, cv.header.email].filter(Boolean).join(' | ');
+  const contact = [cv.header.city, cv.header.phone, cv.header.email, cv.header.teams && `Teams: ${cv.header.teams}`].filter(Boolean).join(' | ');
   if (contact) out.push(contact);
   if (cv.summary) out.push('', 'PROFESSIONAL SUMMARY', cv.summary);
   if (cv.skills.length) out.push('', 'KEY SKILLS', cv.skills.join(' • '));
