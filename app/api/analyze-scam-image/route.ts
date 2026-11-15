@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
 import { aiUserId, guardAiRequest } from '../../../src/ai/guard';
-import { generateTextWithFallback, isTransientGeminiError } from '../../../src/ai/callGemini';
+import { generateTextWithFallback, isTransientGeminiError } from '../../../src/ai/callGemini';
 import { errMsg } from '../../../src/utils/errors';
+import { parseScamImages } from '../../../src/ai/scamImages';
 
 function corsHeaders(origin: string | null) {
   return {
@@ -25,22 +26,9 @@ export async function POST(request: Request) {
     const blocked = await guardAiRequest(request, headers);
     if (blocked) return blocked;
 
-    const body = await request.json();
-
-    // Soporta el formato nuevo (varias imágenes) y el viejo (una sola), para
-    // no romper nada si algo todavía manda el formato anterior.
-    const images: { base64: string; mediaType: string }[] = body.images
-      ? body.images
-      : body.imageBase64
-      ? [{ base64: body.imageBase64, mediaType: body.mediaType }]
-      : [];
-
-    if (images.length === 0) {
-      return NextResponse.json({ error: 'Falta al menos una imagen' }, { status: 400, headers });
-    }
-
-    if (images.length > 5) {
-      return NextResponse.json({ error: 'Máximo 5 imágenes por análisis' }, { status: 400, headers });
+    const parsedImages = parseScamImages(await request.json());
+    if (!parsedImages.ok) {
+      return NextResponse.json({ error: parsedImages.error }, { status: parsedImages.status, headers });
     }
 
     const apiKey = process.env.GEMINI_API_KEY;
@@ -72,12 +60,7 @@ Si el documento es un formulario oficial de USCIS/DOL (I-797, I-129, ETA, etc.) 
 Si notas alguna de las situaciones normales descritas arriba (diferencia de fechas por período de gracia, número de caso sin guiones, imperfecciones propias de una foto), MENCIÓNALAS brevemente en tu "resumen" explicando por qué son normales y no una señal de alerta. Esto es importante: el usuario debe sentir que la IA sí revisó esos detalles y los entendió correctamente, no que los pasó por alto. Por ejemplo: "La fecha del talón I-94 (06/10/2024) difiere de la fecha principal (05/31/2024) porque corresponde al período de gracia estándar que USCIS explica en el propio aviso; esto es normal y no indica alteración."
 Responde ÚNICAMENTE con un objeto JSON estricto con las claves: "nivel" ("alto", "moderado" o "bajo"), "resumen", "senales" (array de strings) y "recomendacion".`;
 
-    const imageParts = images.map((img) => ({
-      inlineData: {
-        mimeType: img.mediaType,
-        data: img.base64.replace(/^data:image\/\w+;base64,/, ''),
-      },
-    }));
+    const imageParts = parsedImages.images.map((inlineData) => ({ inlineData }));
 
     // Gemini a veces responde 503 "high demand" de forma pasajera; 2 reintentos
     // silenciosos antes de rendirse cubren casi todos esos casos.
