@@ -55,7 +55,7 @@ export async function POST(request: Request) {
 
   const body = await request.json().catch(() => ({}));
   const email = normalize(body.email);
-  const dias = Number(body.dias ?? 30);
+  const dias = Number(body.dias ?? 35);
   if (!email.includes('@')) return NextResponse.json({ error: 'Correo inválido' }, { status: 400 });
 
   // Acceso indefinido: sin fecha de vencimiento

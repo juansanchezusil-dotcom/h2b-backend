@@ -22,6 +22,8 @@ export async function requireAdmin(request: Request): Promise<NextResponse | nul
   const { data, error } = await adminClient().auth.getUser(token);
   const email = data.user?.email?.trim().toLowerCase();
   if (error || !email) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+  // Igual que userHasActiveAccess: un correo sin confirmar no vale, aunque Supabase hoy no emita sesión en ese caso
+  if (!data.user?.email_confirmed_at) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
   if (!adminEmails().includes(email)) return NextResponse.json({ error: 'Prohibido' }, { status: 403 });
   return null;
 }
