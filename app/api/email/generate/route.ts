@@ -47,6 +47,7 @@ export async function POST(request: Request) {
     const availability: string = typeof body.availability === 'string' ? body.availability.trim().slice(0, 600) : '';
     const employerMessage: string = typeof body.employerMessage === 'string' ? body.employerMessage.trim().slice(0, 3000) : '';
     const jobDuties: string = typeof body.jobDuties === 'string' ? body.jobDuties.trim().slice(0, 1500) : '';
+    const contactName: string = typeof body.contactName === 'string' ? body.contactName.replace(/["\r\n]+/g, ' ').trim().slice(0, 80) : '';
     const candidateName: string = body.candidateName || '';
     const baseCvText: string = (body.baseCvText || '').trim();
     const skills: string[] = Array.isArray(body.skills) ? body.skills.filter(Boolean) : [];
@@ -82,10 +83,10 @@ REGLAS QUE NO PUEDES ROMPER:
 - Nunca ofrezcas ni menciones ningún tipo de pago del candidato hacia el empleador o un reclutador: en el proceso H-2B legítimo el trabajador nunca paga.
 - El correo debe sonar como lo escribió una persona, no como una plantilla genérica: usa 1 o 2 detalles reales y específicos de su experiencia (no todos).
 - Máximo 6 líneas de cuerpo, tono profesional y directo, sin relleno ni frases exageradas ("passionate", "dream job", etc.).
-- Saludo: usa "Dear Hiring Manager," (no conoces el nombre de ninguna persona; nunca inventes uno).
-- Asunto: informativo y natural, con el nombre del puesto. Si abajo hay una referencia de la oferta, inclúyela; nunca inventes números de requisición ni códigos.
+- Saludo: ${contactName ? `usa "Dear ${contactName}," exactamente con ese nombre (lo escribió el candidato; no lo cambies ni le agregues títulos).` : 'usa "Dear Hiring Manager," (no conoces el nombre de ninguna persona; nunca inventes uno).'}
+- Asunto del correo inicial: EXACTAMENTE "Application for [puesto]${jobReference ? ' (Ref. [referencia de la oferta])' : ''} – [nombre del candidato]". Va el nombre del PUESTO y el del CANDIDATO; nunca el nombre de la empresa ni la ubicación. Nunca inventes números de requisición ni códigos.
 - No afirmes ni prometas disponibilidad, fecha de incorporación, autorización para trabajar, elegibilidad migratoria, patrocinio H-2B, salario ni condiciones. No hables de visas.
-- En el correo inicial, menciona que adjunta su Resume (el candidato lo adjuntará al enviarlo). No menciones una Cover Letter.
+- En el correo inicial, di que adjunta su Resume y su Cover Letter (el candidato los adjuntará al enviarlo), por ejemplo "I have attached my resume and cover letter for your review."
 - No copies el CV dentro del correo ni repitas afirmaciones innecesarias.
 - Si el nivel de inglés del candidato es bajo, igual escribe el correo en buen inglés (el empleador espera un correo bien escrito), pero mantenlo simple.
 
@@ -123,7 +124,7 @@ Responde ÚNICAMENTE con un objeto JSON con estas claves:
 - "body_es": traducción del cuerpo al español (solo para que el candidato entienda, no se envía así).
 - "faltan_datos_es": array de strings en español con lo que falta preguntar al candidato ANTES de redactar (vacío [] si no falta nada).
 - "es_invitacion_entrevista": true si el mensaje de la empresa invita a una entrevista; si no, false.
-- "nota_es": 1 o 2 frases en español con lo que el candidato debe revisar o adjuntar antes de enviar (por ejemplo: comprobar que el puesto y la empresa sean los correctos, completar un dato que falte; en el correo inicial, adjuntar su CV; en un seguimiento NO le pidas volver a adjuntar el CV, y recuérdale revisar que esa postulación no haya recibido ya una respuesta). Sin promesas de resultado.`;
+- "nota_es": 1 o 2 frases en español con lo que el candidato debe revisar o adjuntar antes de enviar (por ejemplo: comprobar que el puesto y la empresa sean los correctos, completar un dato que falte; en el correo inicial, adjuntar su CV (Resume) y su Cover Letter, porque el correo dice que van adjuntos; en un seguimiento NO le pidas volver a adjuntar el CV, y recuérdale revisar que esa postulación no haya recibido ya una respuesta). Sin promesas de resultado.`;
 
     // Gemini a veces responde 503 "high demand" de forma pasajera; 2 reintentos
     // silenciosos antes de rendirse cubren casi todos esos casos.
