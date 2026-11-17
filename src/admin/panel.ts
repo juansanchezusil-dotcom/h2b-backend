@@ -8,8 +8,9 @@ import { estimateCostUsd } from '../ai/costTracking';
 const DAY = 24 * 60 * 60 * 1000;
 const POSTED = ['postulado', 'seguimiento', 'entrevista', 'aceptado', 'rechazada', 'no_respondido'];
 
-// Precios (USD). El anual cuesta 259 hasta el vie 27-nov-2026 y 296 desde el sáb 28.
-export const PRECIOS = { mensual: 37, anualPromo: 259, anual: 296, promoHasta: '2026-11-28' };
+// Precios (USD). El anual cuesta 259 hasta el mié 25-nov-2026 (11:59 p. m. Lima) y 296 desde el jue 26 hasta el vie 27.
+// Desde el sáb 28 el anual cierra y solo queda el mensual; el cambio de precio y el cierre se hacen a mano en Skool.
+export const PRECIOS = { mensual: 37, anualPromo: 259, anual: 296, promoHasta: '2026-11-26' };
 
 export interface PanelFilters {
   dias: number;
@@ -126,7 +127,8 @@ export function ingresoEstimado(miembros: Miembro[], now: number, excluirCorreos
       por.mensual.n++;
       por.mensual.usd += PRECIOS.mensual;
     } else {
-      const altaDia = dayKey(now - (m.diasDesdeAlta ?? 0) * DAY);
+      // Día de alta en hora de Lima (UTC-5), porque el corte de precio es a las 11:59 p. m. allá.
+      const altaDia = dayKey(now - (m.diasDesdeAlta ?? 0) * DAY - 5 * 60 * 60 * 1000);
       const precio = altaDia < PRECIOS.promoHasta ? PRECIOS.anualPromo : PRECIOS.anual;
       por.anual.n++;
       por.anual.usd += precio / 12;
@@ -372,7 +374,7 @@ export function buildPanel(data: PanelData, f: PanelFilters, vista: string, most
     totalMiembros: data.miembros.length,
     definiciones: {
       salud: 'Puntaje de 0 a 100: 45 puntos por la proporción de vigentes activos esta semana, 35 por los que ya postulan, 20 por no tener errores en 24 h (se descuenta 2 por error, hasta 10). Con pocos miembros es solo una guía.',
-      ingreso: 'Estimado, no es cobro real. Miembros vigentes por su plan: mensual $37; anual $259 si se dio de alta antes del 28-nov-2026 y $296 después, dividido entre 12. El plan se deduce de la duración del acceso (300 días o más = anual). No cuenta cortesías (accesos gratis), cuentas de prueba ni la tuya.',
+      ingreso: 'Estimado, no es cobro real. Miembros vigentes por su plan: mensual $37; anual $259 si se dio de alta hasta el 25-nov-2026 y $296 desde el 26-nov, dividido entre 12. El plan se deduce de la duración del acceso (300 días o más = anual). No cuenta cortesías (accesos gratis), cuentas de prueba ni la tuya.',
     },
   };
 

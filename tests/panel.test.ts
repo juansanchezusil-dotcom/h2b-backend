@@ -83,7 +83,7 @@ describe('plan e ingreso estimado', () => {
     expect(planOf(by('eva@gmail.com'))).toBe('anual');
   });
 
-  it('suma mensual completo y anual dividido entre 12, con el precio de promo antes del 28-nov', () => {
+  it('suma mensual completo y anual dividido entre 12, con el precio de promo hasta el 25-nov', () => {
     const { miembros } = fixture();
     const r = ingresoEstimado(miembros, now);
     // ana, luis y tom: 3 × $37. eva (alta hace 65 días = 6-oct): promo $259 / 12
@@ -110,7 +110,7 @@ describe('plan e ingreso estimado', () => {
     expect(r.porPlan.mensual.n).toBe(2);
   });
 
-  it('el anual dado de alta desde el 28-nov cuesta 296', () => {
+  it('el anual dado de alta desde el 26-nov cuesta 296', () => {
     const { miembros } = fixture();
     const eva = { ...miembros.find((m) => m.email === 'eva@gmail.com')!, diasDesdeAlta: 5 };
     const r = ingresoEstimado([eva], now);
