@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { adminClient, requireAdmin } from '../../../../src/admin/auth';
+import { defaultAccessDays } from '../../../../src/admin/accessDays';
 import { sendBienvenida } from '../../../../src/email/bienvenida';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -55,7 +56,8 @@ export async function POST(request: Request) {
 
   const body = await request.json().catch(() => ({}));
   const email = normalize(body.email);
-  const dias = Number(body.dias ?? 35);
+  // Sin `dias` explícito, el servidor decide (30, o 35 si es persona nueva en la ventana de lanzamiento)
+  const diasPedidos = body.dias === undefined || body.dias === null || body.dias === '' ? null : Number(body.dias);
   if (!email.includes('@')) return NextResponse.json({ error: 'Correo inválido' }, { status: 400 });
 
   // Acceso indefinido: sin fecha de vencimiento
@@ -71,12 +73,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true });
   }
 
-  if (!Number.isFinite(dias) || dias < 1 || dias > 3650) {
+  if (diasPedidos !== null && (!Number.isFinite(diasPedidos) || diasPedidos < 1 || diasPedidos > 3650)) {
     return NextResponse.json({ error: 'Días inválidos (1 a 3650)' }, { status: 400 });
   }
 
   const supabase = adminClient();
   const { data: current } = await supabase.from('accesos').select('vence_el, activo, origen').eq('email', email).maybeSingle();
+  const dias = diasPedidos ?? defaultAccessDays(!current);
   const currentEnd = current?.vence_el ? new Date(current.vence_el).getTime() : 0;
   const base = Math.max(Date.now(), currentEnd);
   // Bienvenida solo si no tenía un acceso vigente (alta nueva o reactivación); una renovación no la repite
