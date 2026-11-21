@@ -2,7 +2,7 @@
 // tuteo, directos. Reglas que no se rompen: no se promete visa, patrocinio, entrevista ni empleo; no hay
 // urgencia inventada (las fechas son las reales); y siempre se puede responder o darse de baja.
 
-export type EmailKind = 'renewal_7' | 'renewal_3' | 'renewal_after' | 'reengage' | 'reto_30';
+export type EmailKind = 'renewal_7' | 'renewal_3' | 'renewal_after' | 'reengage' | 'reto_30' | 'primer_ingreso';
 
 export interface TemplateData {
   nombre: string | null;
@@ -62,6 +62,18 @@ function body(kind: EmailKind, d: TemplateData): Body {
           'Mira, casi siempre la gente se frena por una de estas tres cosas: no sabe qué empresas verificar, le da miedo el inglés, o duda de si una oferta es real. Respóndeme este correo con la que te toca a ti y te digo por dónde seguir.',
         ],
         button: { label: 'Entrar a mi Centro de Control', url: d.appUrl },
+      };
+
+    case 'primer_ingreso':
+      return {
+        subject: 'Tu acceso a Juan Te Avisa PRO sigue sin estrenarse',
+        paragraphs: [
+          hola,
+          'Ya tienes tu acceso a Juan Te Avisa PRO, pero todavía no has entrado a la app. Tu acceso corre desde el día que se activó, así que cada día cuenta.',
+          'Entra y haz esto, en este orden: completa tu perfil, abre tu Mapa H2B para ver tu ruta paso a paso, y revisa las ofertas verificadas de tu puesto. Con eso ya estás buscando trabajo de forma ordenada.',
+          'Si no puedes entrar o algo no te funciona, respóndeme este correo y te ayudo.',
+        ],
+        button: { label: 'Entrar a la app', url: d.appUrl },
       };
 
     case 'reto_30': {

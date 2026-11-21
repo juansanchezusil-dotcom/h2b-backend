@@ -17,6 +17,8 @@ export const ENGAGEMENT = {
   renewal7: [4, 7] as const, // ventana de días para vencer del primer aviso de renovación
   renewal3: [1, 3] as const,
   renewalAfter: [-5, -1] as const, // días después de vencer
+  firstLoginWindow: [3, 14] as const, // días desde el alta para el correo a quien nunca ha entrado
+  skipIfContactedFirstLoginDays: 3,
   retoWindow: [30, 40] as const, // días desde el alta para el correo del Reto de 30 días
   skipIfContactedRetoDays: 3,
   perRunCap: 50,
@@ -122,6 +124,19 @@ export function planEmails(input: PlanInput): PlannedEmail[] {
       !sent('reto_30', 'reto')
     ) {
       planned.push({ userId, email: m.email, kind: 'reto_30', dedupeKey: 'reto', data });
+      continue;
+    }
+
+    // 2b) Primer ingreso: quien nunca ha entrado y ya pasaron 3 días del alta. Una sola vez por persona.
+    if (
+      m.diasSinEntrar === null &&
+      alta !== null &&
+      alta >= ENGAGEMENT.firstLoginWindow[0] &&
+      alta <= ENGAGEMENT.firstLoginWindow[1] &&
+      contactedDays >= ENGAGEMENT.skipIfContactedFirstLoginDays &&
+      !sent('primer_ingreso', 'primer')
+    ) {
+      planned.push({ userId, email: m.email, kind: 'primer_ingreso', dedupeKey: 'primer', data });
       continue;
     }
 
