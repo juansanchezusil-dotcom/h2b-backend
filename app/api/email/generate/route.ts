@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
-import { GoogleGenAI } from '@google/genai';
 import { aiUserId, guardAiRequest } from '../../../../src/ai/guard';
-import { generateTextWithFallback, isTransientGeminiError } from '../../../../src/ai/callGemini';
+import { aiClient, generateTextWithFallback, isTransientGeminiError } from '../../../../src/ai/callGemini';
 import { errMsg } from '../../../../src/utils/errors';
 
 function corsHeaders(origin: string | null) {
@@ -63,17 +62,15 @@ export async function POST(request: Request) {
       );
     }
 
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      console.error('ERROR: GEMINI_API_KEY no encontrada en process.env');
-      return NextResponse.json({ error: 'GEMINI_API_KEY no encontrada' }, { status: 500, headers });
+    const ai = aiClient();
+    if (!ai) {
+      console.error('ERROR: no hay ANTHROPIC_API_KEY ni GEMINI_API_KEY');
+      return NextResponse.json({ error: 'El asistente no está disponible ahora. Intenta más tarde.' }, { status: 500, headers });
     }
 
     if (emailType === 'reply' && employerMessage.length < 5) {
       return NextResponse.json({ error: 'Pega el mensaje que te escribió la empresa para poder responderle.' }, { status: 400, headers });
     }
-
-    const ai = new GoogleGenAI({ apiKey });
 
     const promptText = `Eres un experto redactando correos de postulación y seguimiento para el programa de visas H-2B (trabajo temporal en EE. UU.). Escribe un correo corto y profesional EN INGLÉS que el candidato le mandará directo al empleador.
 

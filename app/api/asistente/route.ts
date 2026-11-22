@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
-import { GoogleGenAI } from '@google/genai';
 import { aiUserId, guardAiRequest } from '../../../src/ai/guard';
-import { generateTextWithFallback, isTransientGeminiError } from '../../../src/ai/callGemini';
+import { aiClient, generateTextWithFallback, isTransientGeminiError } from '../../../src/ai/callGemini';
 import { ASISTENTE_DAILY_LIMIT, MAX_MESSAGE, buildAsistentePrompt, cleanHistory, clip } from '../../../src/ai/asistente';
 import { errMsg } from '../../../src/utils/errors';
 import { guardarPregunta } from '../../../src/ai/asistentePreguntas';
@@ -30,9 +29,11 @@ export async function POST(request: Request) {
     const blocked = await guardAiRequest(request, headers, { bucket: 'asistente', limit: ASISTENTE_DAILY_LIMIT });
     if (blocked) return blocked;
 
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) return NextResponse.json({ error: 'Servicio no disponible.' }, { status: 500, headers });
-    const ai = new GoogleGenAI({ apiKey });
+    const ai = aiClient();
+    if (!ai) {
+      console.error('ERROR: no hay ANTHROPIC_API_KEY ni GEMINI_API_KEY');
+      return NextResponse.json({ error: 'El asistente no está disponible ahora. Intenta más tarde.' }, { status: 500, headers });
+    }
 
     const prompt = buildAsistentePrompt(message, cleanHistory(body.history), clip(body.pantalla, 60));
     const text = await generateTextWithFallback(

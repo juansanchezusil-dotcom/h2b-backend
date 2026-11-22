@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
-import { GoogleGenAI } from '@google/genai';
 import { aiUserId, guardAiRequest, CV_TURN_DAILY_LIMIT } from '../../../../src/ai/guard';
-import { generateTextWithFallback, isTransientGeminiError } from '../../../../src/ai/callGemini';
+import { aiClient, generateTextWithFallback, isTransientGeminiError } from '../../../../src/ai/callGemini';
 import { buildInterviewPrompt, type InterviewTurn } from '../../../../src/ai/cv/prompts';
 import { computeGaps, mergeProfile, sanitizeProfile } from '../../../../src/ai/cv/profile';
 import { asArray, asRaw, type Raw } from '../../../../src/utils/raw';
@@ -64,12 +63,11 @@ export async function POST(request: Request) {
       documentPart = { inlineData: { mimeType: doc.mediaType, data } };
     }
 
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      console.error('ERROR: GEMINI_API_KEY no encontrada en process.env');
-      return NextResponse.json({ error: 'GEMINI_API_KEY no encontrada' }, { status: 500, headers });
+    const ai = aiClient();
+    if (!ai) {
+      console.error('ERROR: no hay ANTHROPIC_API_KEY ni GEMINI_API_KEY');
+      return NextResponse.json({ error: 'El asistente no está disponible ahora. Intenta más tarde.' }, { status: 500, headers });
     }
-    const ai = new GoogleGenAI({ apiKey });
 
     const prompt = buildInterviewPrompt({
       profile,

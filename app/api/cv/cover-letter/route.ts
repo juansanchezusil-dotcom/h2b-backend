@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
-import { GoogleGenAI } from '@google/genai';
 import { aiUserId, guardAiRequest } from '../../../../src/ai/guard';
-import { generateTextWithFallback, isTransientGeminiError } from '../../../../src/ai/callGemini';
+import { aiClient, generateTextWithFallback, isTransientGeminiError } from '../../../../src/ai/callGemini';
 import { buildCoverLetterPrompt } from '../../../../src/ai/cv/prompts';
 import { computeGaps, sanitizeProfile } from '../../../../src/ai/cv/profile';
 import { buildVerifiedLetter } from '../../../../src/ai/cv/build';
@@ -46,12 +45,11 @@ export async function POST(request: Request) {
 
     const contactName = clip(body.contact_name, 80);
 
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      console.error('ERROR: GEMINI_API_KEY no encontrada en process.env');
-      return NextResponse.json({ error: 'GEMINI_API_KEY no encontrada' }, { status: 500, headers });
+    const ai = aiClient();
+    if (!ai) {
+      console.error('ERROR: no hay ANTHROPIC_API_KEY ni GEMINI_API_KEY');
+      return NextResponse.json({ error: 'El asistente no está disponible ahora. Intenta más tarde.' }, { status: 500, headers });
     }
-    const ai = new GoogleGenAI({ apiKey });
 
     const text = await generateTextWithFallback(ai, {
       model: 'gemini-3.6-flash',

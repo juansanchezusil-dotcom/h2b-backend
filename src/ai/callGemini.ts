@@ -104,6 +104,14 @@ async function callClaude(contents: unknown, tier: AiTier, ctx: AiCostContext): 
   return extractJson(text);
 }
 
+// Cliente de Gemini para generateTextWithFallback. Basta con una de las dos llaves: antes las rutas exigían la de
+// Gemini y respondían 500 aunque Claude, el proveedor principal, estuviera configurado. null = ninguna llave.
+export function aiClient(): GoogleGenAI | null {
+  const gemini = process.env.GEMINI_API_KEY;
+  if (!gemini && !process.env.ANTHROPIC_API_KEY) return null;
+  return new GoogleGenAI({ apiKey: gemini || 'sin-llave-de-gemini' });
+}
+
 // Claude primero. Si falla (cupo, saturación, imagen no soportada, sin saldo) o no hay ANTHROPIC_API_KEY,
 // responde Gemini con sus reintentos, para que la persona no vea el error de "mucho tráfico".
 export async function generateTextWithFallback(
@@ -111,13 +119,17 @@ export async function generateTextWithFallback(
   params: Parameters<GoogleGenAI['models']['generateContent']>[0],
   { tier = 'fast', feature, userId }: { tier?: AiTier } & AiCostContext = {}
 ): Promise<string> {
+  let claudeError: unknown = null;
   if (process.env.ANTHROPIC_API_KEY) {
     try {
       return await callClaude(params.contents, tier, { feature, userId });
     } catch (err) {
+      claudeError = err;
       console.warn('⚠️ Claude falló, respondiendo con Gemini:', errMsg(err) || err);
     }
   }
+  // Sin llave de Gemini no hay respaldo: se informa el error de Claude tal cual
+  if (!process.env.GEMINI_API_KEY) throw claudeError ?? new Error('No hay proveedor de IA configurado');
   const response = await generateContentWithRetry(ai, params);
   recordAiCost(GEMINI_FALLBACK_MODEL, 0, 0, { feature, userId });
   return response.text || '';
