@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "cv:personas": "tsx scripts/cvPersonas.ts"
+    "cv:personas": "tsx scripts/cvPersonas.ts",
+    "smoke": "node scripts/smoke.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.3.0",
