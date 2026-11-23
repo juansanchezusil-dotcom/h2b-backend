@@ -92,13 +92,10 @@ export async function runJobAlerts(opts: {
     if (lastAlert && now - lastAlert < JOB_ALERTS.minGapDays * DAY) continue;
     if (logs.some((l) => now - new Date(l.created_at).getTime() < DAY)) continue;
 
-    // Primero las de su Ruta A (la de mayor experiencia), luego las de la B; dentro de cada una, las más recientes
-    const ranked = jobs
-      .filter((j) => j.title && j.employer_name)
-      .map((j) => ({ j, route: routeOfJob(j.title as string, p) }))
-      .filter((x) => x.route !== null);
-    const matches = [...ranked.filter((x) => x.route === 'A'), ...ranked.filter((x) => x.route === 'B')]
-      .map((x) => x.j)
+    // El correo semanal es solo de su Ruta A: la postulación principal (la de mayor experiencia).
+    // La Ruta B se ve en la app y en las notificaciones, no en este correo.
+    const matches = jobs
+      .filter((j) => j.title && j.employer_name && routeOfJob(j.title, p) === 'A')
       .slice(0, JOB_ALERTS.maxJobs)
       .map((j) => ({ title: j.title as string, employer: j.employer_name as string, location: j.location || '' }));
     if (!matches.length) continue;
