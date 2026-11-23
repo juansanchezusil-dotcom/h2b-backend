@@ -57,6 +57,40 @@ Orienta las preguntas a ESTE puesto.${distinto ? ` Es distinto al puesto objetiv
 `;
 }
 
+// Las dos preguntas con las que abre casi toda entrevista real, y la que la cierra.
+export const OPENING_QUESTIONS = ['Tell me a little about yourself.', 'Can you tell me about your work experience?'];
+export const CLOSING_QUESTION = 'Do you have any questions for us?';
+
+// Guion de la entrevista con el empleador, como la hacen los empleadores reales. El número es la posición del turno
+// (las repreguntas también cuentan), así que el cierre siempre llega aunque haya repreguntas por el camino.
+export function employerStageGuide(n: number): string {
+  const head = 'ETAPA DE ESTA PREGUNTA (guion de la entrevista; síguelo. Solo tienen prioridad sobre él las reglas de repetir la pregunta si respondió en español y de pedir una aclaración):\n';
+  const tail = '\n\n';
+  const total = TOTAL_QUESTIONS;
+  if (n === 1) {
+    return `${head}- Apertura. La pregunta es EXACTAMENTE: "${OPENING_QUESTIONS[0]}". Nivel 1. No es repregunta.${tail}`;
+  }
+  if (n === 2) {
+    return `${head}- Apertura. La pregunta es EXACTAMENTE: "${OPENING_QUESTIONS[1]}". Nivel 1. No es repregunta.${tail}`;
+  }
+  if (n === 3 || n === 4) {
+    return `${head}- Contexto del puesto (pregunta ${n - 2} de 2 de esta etapa). Pregunta por el TIPO de lugar y de operación donde ha trabajado o trabaja, según el puesto y la oferta: en cocina, qué tipo de restaurante (casual, fine dining, de mariscos, steak house, banquetes, cocina de hotel); en limpieza, qué tipo y tamaño de hotel y cuántas habitaciones; en jardinería, residencial o comercial y qué equipos; en construcción, qué tipo de obra; de mesero o bartender, qué tipo de servicio y volumen; en recepción, qué tipo de hotel. Tómalo de las funciones de la oferta y del CV, y no le sugieras qué conviene responder.${n === 4 ? ' En esta segunda, pregunta cómo era su día o su ritmo de trabajo en ese tipo de lugar (volumen, turnos, trabajo en equipo).' : ''} Una sola pregunta, sin unir dos con "or". Nivel 1. Puedes repreguntar solo si la respuesta fue muy vaga.${tail}`;
+  }
+  if (n >= 5 && n <= 7) {
+    return `${head}- Habilidades específicas del puesto (pregunta ${n - 4} de 3 de esta etapa). Haz una pregunta técnica concreta del oficio, distinta de las anteriores. Ejemplos por puesto: en cocina, preparar un plato que aparezca en su CV o en la cocina de la oferta (por ejemplo un plato típico de su experiencia), cortar o filetear carne y pescado, puntos y términos de cocción (rare, medium, well done), temperaturas de seguridad, orden y limpieza de la estación; en limpieza, el orden para limpiar una habitación, productos y manejo de químicos, cómo deja una habitación lista; en jardinería, qué máquinas usa y cómo las mantiene, cómo corta y cuida el césped y las plantas; en construcción, qué herramientas maneja y qué medidas de seguridad usa; de mesero o bartender, cómo toma una orden, el menú, el manejo del bar. Basa la pregunta en lo que dice el CV y en las funciones de la oferta; NO asumas que sabe algo que no aparece. Si lo que mencionó no se menciona en el CV, pregúntalo abierto ("Have you ever...?") en lugar de darlo por hecho. Nivel 2, o 3 si va bien. Puedes repreguntar solo si fue ambigua.${tail}`;
+  }
+  if (n === 8) {
+    return `${head}- Situación práctica. Una sola pregunta sobre cómo actuaría en una situación real del puesto: seguridad, ritmo o presión, trabajo en equipo, seguir instrucciones o resolver un problema. Nivel 3. Puedes repreguntar solo si fue muy general.${tail}`;
+  }
+  if (n === total - 1) {
+    return `${head}- Condiciones del trabajo y vivienda. El entrevistador explica en una o dos frases cortas las condiciones del trabajo (horario, vivienda, transporte y pago) y pregunta si las entendió y si está de acuerdo, por ejemplo: "...Do you understand everything I explained? Is everything clear?". Usa SOLO los datos que aparezcan en la oferta; si la oferta no los trae, habla en general ("the employer will explain the schedule, housing arrangements and pay as written in the job order") y NUNCA inventes montos, direcciones ni horarios. Nivel 1. No es repregunta.${tail}`;
+  }
+  if (n >= total) {
+    return `${head}- Cierre. La pregunta es EXACTAMENTE: "${CLOSING_QUESTION}". Nivel 1. No es repregunta.${tail}`;
+  }
+  return '';
+}
+
 function historyBlock(turns: Turn[]): string {
   if (!turns.length) return '(todavía no hay preguntas)';
   return turns.map((t, i) => `P${i + 1}: ${t.q}\nR${i + 1}: ${t.a || '(sin respuesta)'}`).join('\n');
@@ -79,7 +113,7 @@ ${historyBlock(turns)}
 
 Ahora toca la pregunta principal número ${n} de unas ${TOTAL_QUESTIONS}.
 
-DIFICULTAD ADAPTATIVA:
+${module === 'employer' ? employerStageGuide(n) : ''}DIFICULTAD ADAPTATIVA:
 - Nivel 1 (básico): preguntas directas sobre experiencia general o el puesto.
 - Nivel 2 (intermedio): explicar tareas, dar ejemplos concretos, procedimientos.
 - Nivel 3 (realista): repreguntas espontáneas, escenarios del puesto, aclarar respuestas ambiguas.
@@ -144,7 +178,8 @@ REGLAS DE LA EVALUACIÓN:
 - No conviertas un inglés básico en incapacidad laboral. Corrige primero los errores que afectan el significado o la comprensión; no sobrecargues con detalles menores.
 - En "improve" elige como máximo 5 respuestas prioritarias. La versión mejorada en inglés debe conservar el significado REAL de lo que el candidato dijo, en inglés sencillo acorde a su nivel, sin agregar empleos, fechas, herramientas, certificaciones ni resultados que no dijo. Si no se puede saber qué quiso decir, no la reescribas: pídele aclaración en "mejorar_es".
 - Si ves una posible contradicción entre sus respuestas y el CV, descríbela sin decidir cuál dato es correcto y recomienda verificarla (solo si hay CV).
-- No muestres respuestas modelo como guiones para memorizar.
+- No muestres respuestas modelo como guiones para memorizar.${module === 'employer' ? `
+- La entrevista del empleador sigue un guion: presentación, experiencia laboral, tipo de lugar donde trabajó, habilidades del oficio, una situación práctica, condiciones y vivienda, y preguntas finales. Si hubo pregunta sobre vivienda y condiciones, evalúa en "comprension" si de verdad las entendió o contestó sin comprender. Si hubo "¿tiene preguntas?", evalúa si hizo una pregunta pertinente (horario, vivienda, pago, transporte, inicio) o si no preguntó nada, y dile cómo aprovechar ese momento.` : ''}
 
 Responde ÚNICAMENTE con un objeto JSON con estas claves:
 - "level_reached": 1, 2 o 3.
