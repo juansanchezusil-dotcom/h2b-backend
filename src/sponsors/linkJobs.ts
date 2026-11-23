@@ -29,11 +29,14 @@ interface Job {
   employer_name: string | null;
   state: string | null;
   location: string | null;
+  sponsor_company_id: number | null;
+  sponsor_match: string | null;
 }
 
 // USCIS corta los nombres largos (ej. "VALLEY LANDSCAPING INC-CHRISTIANSB")
 const USCIS_NAME_LIMIT = 33;
 const MIN_KEY_LENGTH = 4;
+const WRITE_CONCURRENCY = 8;
 
 const SUFFIXES = new Set([
   'LLC', 'L L C', 'INC', 'INCORPORATED', 'CORP', 'CORPORATION', 'CO', 'COMPANY',
@@ -95,7 +98,7 @@ async function fetchAll<T>(table: string, columns: string): Promise<T[]> {
   const rows: T[] = [];
   // PostgREST corta en 1000 filas: hay que paginar
   for (let from = 0; ; from += 1000) {
-    const { data, error } = await supabase.from(table).select(columns).range(from, from + 999);
+    const { data, error } = await supabase.from(table).select(columns).order('id').range(from, from + 999);
     if (error) throw error;
     rows.push(...(data as T[]));
     if (!data || data.length < 1000) break;
@@ -149,7 +152,7 @@ interface LinkOptions {
 export async function linkJobsToSponsors({ write = false, csvPath = null }: LinkOptions = {}) {
   console.log('📥 Leyendo ofertas e historial de USCIS...');
   const [jobs, sponsors] = await Promise.all([
-    fetchAll<Job>('jobs', 'id, employer_name, state, location'),
+    fetchAll<Job>('jobs', 'id, employer_name, state, location, sponsor_company_id, sponsor_match'),
     fetchAll<Sponsor>('sponsor_companies', 'id, employer_name, state, worksite_states, consular_processed, total_approved, cap_type'),
   ]);
 
@@ -190,31 +193,45 @@ export async function linkJobsToSponsors({ write = false, csvPath = null }: Link
     console.log(`\n📝 Detalle completo en ${csvPath}`);
   }
 
+  let written = 0;
   if (write) {
-    // Agrupa por (empresa, confianza) para actualizar muchas ofertas en una sola llamada
+    // Agrupa por (empresa, confianza) para actualizar muchas ofertas en una sola llamada.
+    // Solo entran las ofertas cuyo vínculo cambió: día a día son las nuevas y poco más.
     const groups = new Map<string, { sponsorId: number | null; confidence: Confidence; jobIds: number[] }>();
     for (const r of results) {
       // Solo se guarda el vínculo cuando se va a mostrar; ambigua/sin_historial quedan sin empresa
       const sponsorId = VISIBLE.has(r.confidence) ? r.sponsor!.id : null;
+      if (r.job.sponsor_company_id === sponsorId && r.job.sponsor_match === r.confidence) continue;
       const k = `${sponsorId}|${r.confidence}`;
       if (!groups.has(k)) groups.set(k, { sponsorId, confidence: r.confidence, jobIds: [] });
       groups.get(k)!.jobIds.push(r.job.id);
     }
 
-    let updated = 0;
+    const batches: { sponsorId: number | null; confidence: Confidence; ids: number[] }[] = [];
     for (const g of groups.values()) {
       for (let i = 0; i < g.jobIds.length; i += 500) {
-        const ids = g.jobIds.slice(i, i + 500);
-        const { error } = await supabase
-          .from('jobs')
-          .update({ sponsor_company_id: g.sponsorId, sponsor_match: g.confidence })
-          .in('id', ids);
-        if (error) throw error;
-        updated += ids.length;
+        batches.push({ sponsorId: g.sponsorId, confidence: g.confidence, ids: g.jobIds.slice(i, i + 500) });
       }
     }
-    console.log(`💾 ${updated} ofertas actualizadas con su historial de USCIS`);
+
+    // Varias llamadas a la vez en lugar de una tras otra
+    let updated = 0;
+    let next = 0;
+    const worker = async () => {
+      while (next < batches.length) {
+        const b = batches[next++];
+        const { error } = await supabase
+          .from('jobs')
+          .update({ sponsor_company_id: b.sponsorId, sponsor_match: b.confidence })
+          .in('id', b.ids);
+        if (error) throw error;
+        updated += b.ids.length;
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(WRITE_CONCURRENCY, batches.length) }, worker));
+    written = updated;
+    console.log(`💾 ${updated} ofertas actualizadas con su historial de USCIS (${jobs.length - written} sin cambios)`);
   }
 
-  return counts;
+  return { ...counts, written };
 }
