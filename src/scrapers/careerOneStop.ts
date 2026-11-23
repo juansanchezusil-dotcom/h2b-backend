@@ -112,6 +112,11 @@ async function scrapeAllPages(): Promise<RawRow[]> {
     try {
       html = await fetchResultsPage(curPage);
     } catch (err) {
+      // Si falla la primera página (bloqueo 403, sitio caído) no hay nada que
+      // guardar: se propaga para que el cron lo registre como falla en vez de
+      // pasar por "0 ofertas nuevas". Si falla una página posterior, se
+      // conserva lo ya leído.
+      if (curPage === 1) throw err;
       console.warn(`⚠️ CareerOneStop: ${errMsg(err)}, se detiene aquí.`);
       break;
     }
@@ -163,10 +168,11 @@ export async function scrapeCareerOneStop(): Promise<number> {
     rawRows = await scrapeAllPages();
   } catch (err) {
     // El sitio puede bloquear el scraping, caerse, o cambiar su HTML.
-    // No propaga el error: las ofertas de CareerOneStop de días anteriores
-    // se quedan como están, y el cron del DOL sigue su curso.
+    // Las ofertas de días anteriores se quedan como están; runUpdateJobs
+    // atrapa este error, lo anota como advertencia (ok=false) y el resto
+    // del cron sigue su curso.
     console.error('❌ Error scrapeando CareerOneStop:', errMsg(err) || err);
-    return 0;
+    throw err;
   }
 
   if (rawRows.length === 0) {
