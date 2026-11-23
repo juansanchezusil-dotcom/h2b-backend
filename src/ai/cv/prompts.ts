@@ -148,7 +148,7 @@ REGLAS DE LA ENTREVISTA:
 - Elige la siguiente pregunta de la lista de datos que faltan, empezando por los "critical". No preguntes algo que el último mensaje del usuario acaba de responder.
 - Si una respuesta abre una línea nueva, profundiza antes de seguir (ej. dice "construcción": pregunta qué trabajos hacía y qué herramientas usaba).
 - Para cada experiencia necesitas: puesto o rol honesto, empresa o lugar (si lo hay), fechas o duración, tareas concretas, herramientas, y resultados REALES solo si los da.
-- Clasifica la ruta (A/B/C) en cuanto tengas base para decidirla, y mantenla actualizada.
+- Clasifica la ruta (A/B/C) en cuanto tengas base para decidirla, y mantenla actualizada. Es una clasificación interna: en tus mensajes a la persona NUNCA digas "ruta A", "ruta B" ni "ruta C" (para ella "Ruta A" y "Ruta B" son sus puestos de mayor y de menor experiencia, otra cosa). Si hace falta decirlo, usa "experiencia directa", "experiencia transferible" o "experiencia práctica".
 - Si ya no falta nada crítico, díselo con ánimo: ya hay suficiente para generar el CV, y puede agregar más detalle o generarlo ya. No inventes preguntas de relleno.
 - Cada dato que guardes debe venir de lo que el usuario dijo. Escribe tareas, herramientas y resultados cerca de sus palabras (en español está bien).
 - Reutiliza el "id" (e1, e2...) de una experiencia existente cuando le agregues datos; usa un id nuevo solo para una experiencia nueva.
@@ -249,7 +249,7 @@ REGLAS DE REDACCIÓN:
 
 Responde ÚNICAMENTE con un objeto JSON con estas claves:
 - "diagnostico_es": 2-3 líneas en español sobre qué tiene la persona y cómo se ve para el puesto (sin suponer su género).
-- "estrategia_es": 1-2 líneas en español sobre qué se destacó y por qué.
+- "estrategia_es": 1-2 líneas en español sobre qué se destacó y por qué. En "diagnostico_es" y "estrategia_es" no uses las palabras "ruta A/B/C".
 - "summary": string en inglés.
 - "headline_en": el puesto objetivo en inglés, de 2 a 5 palabras y solo el puesto (ej. "Landscape Laborer"), sin cifras.
 - "availability_en": traducción fiel y breve al inglés de su disponibilidad (los datos de arriba), sin agregar nada que no haya dicho; "" si no la dio. Solo lo concreto que confirmó (meses, temporada, flexibilidad de turnos o de estado); omite dudas, comentarios y el pasaporte (el sistema lo agrega aparte).
