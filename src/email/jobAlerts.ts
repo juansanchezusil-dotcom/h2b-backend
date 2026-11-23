@@ -2,7 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Resend } from 'resend';
 import { computeRadar } from '../admin/radar';
 import { loadRadarInput } from '../admin/loadRadar';
-import { jobMatchesRole } from '../jobs/roleMatch';
+import { routeOfJob } from '../jobs/roleMatch';
 import { readMode, weekKey, type Mode } from './engagement';
 import { renderJobAlert, type AlertJob } from './templates';
 import { unsubscribeUrl } from './unsubscribe';
@@ -61,7 +61,7 @@ export async function runJobAlerts(opts: {
 
   const since = new Date(now - JOB_ALERTS.lookbackDays * DAY).toISOString();
   const [profRes, optRes, logRes, jobsRes] = await Promise.all([
-    supabase.from('profiles').select('id, target_role, industry').in('id', ids),
+    supabase.from('profiles').select('id, target_role, industry, experiencia_industria, experiencia_industria_b').in('id', ids),
     supabase.from('profiles').select('id').eq('email_optout', true),
     supabase.from('email_log').select('user_id, kind, created_at').gte('created_at', new Date(now - 2 * DAY - JOB_ALERTS.minGapDays * DAY).toISOString()),
     supabase.from('jobs').select('id, title, employer_name, location, created_at').gte('created_at', since).order('created_at', { ascending: false }).limit(1000),
@@ -83,9 +83,8 @@ export async function runJobAlerts(opts: {
     const userId = userIdByEmail.get(m.email.trim().toLowerCase()) as string;
     if (optout.has(userId)) continue;
     const p = profile.get(userId);
-    const role = (p?.target_role || '').trim();
-    const industry = (p?.industry || '').trim();
-    if (!role && !industry) continue;
+    // Sin ninguna ruta (puesto, industria, Ruta A o Ruta B) no hay con qué emparejar
+    if (!p || ![p.target_role, p.industry, p.experiencia_industria, p.experiencia_industria_b].some((v) => (v || '').trim() && v !== 'Sin Experiencia')) continue;
 
     const logs = logsByUser.get(userId) || [];
     // Un aviso de ofertas por semana, y nunca el mismo día que otro correo (renovación, reenganche, etc.)
@@ -93,8 +92,13 @@ export async function runJobAlerts(opts: {
     if (lastAlert && now - lastAlert < JOB_ALERTS.minGapDays * DAY) continue;
     if (logs.some((l) => now - new Date(l.created_at).getTime() < DAY)) continue;
 
-    const matches = jobs
-      .filter((j) => j.title && j.employer_name && jobMatchesRole(j.title, role, industry))
+    // Primero las de su Ruta A (la de mayor experiencia), luego las de la B; dentro de cada una, las más recientes
+    const ranked = jobs
+      .filter((j) => j.title && j.employer_name)
+      .map((j) => ({ j, route: routeOfJob(j.title as string, p) }))
+      .filter((x) => x.route !== null);
+    const matches = [...ranked.filter((x) => x.route === 'A'), ...ranked.filter((x) => x.route === 'B')]
+      .map((x) => x.j)
       .slice(0, JOB_ALERTS.maxJobs)
       .map((j) => ({ title: j.title as string, employer: j.employer_name as string, location: j.location || '' }));
     if (!matches.length) continue;

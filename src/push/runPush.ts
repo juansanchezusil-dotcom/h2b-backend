@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { userHasActiveAccess } from '../auth/member';
-import { jobMatchesRole } from '../jobs/roleMatch';
+import { routeOfJob } from '../jobs/roleMatch';
 import { weekKey } from '../email/engagement';
 import { pushConfigured, sendPushToUser, type PushPayload } from './webPush';
 
@@ -30,7 +30,7 @@ export async function runPush(opts: { supabase: SupabaseClient; now: number }): 
   if (!userIds.length) return summary;
 
   const [profRes, jobsRes, appsRes] = await Promise.all([
-    supabase.from('profiles').select('id, target_role, industry').in('id', userIds),
+    supabase.from('profiles').select('id, target_role, industry, experiencia_industria, experiencia_industria_b').in('id', userIds),
     supabase
       .from('jobs')
       .select('title, employer_name, created_at')
@@ -83,10 +83,10 @@ export async function runPush(opts: { supabase: SupabaseClient; now: number }): 
     summary.users++;
 
     const p = profile.get(userId);
-    const role = (p?.target_role || '').trim();
-    const industry = (p?.industry || '').trim();
-    if (role || industry) {
-      const matches = newJobs.filter((j) => jobMatchesRole(j.title as string, role, industry));
+    if (p) {
+      // Ofertas de su Ruta A primero (la de mayor experiencia), luego las de la Ruta B
+      const ranked = newJobs.map((j) => ({ j, route: routeOfJob(j.title as string, p) })).filter((x) => x.route !== null);
+      const matches = [...ranked.filter((x) => x.route === 'A'), ...ranked.filter((x) => x.route === 'B')].map((x) => x.j);
       if (matches.length) {
         const first = matches[0];
         const more = matches.length - 1;

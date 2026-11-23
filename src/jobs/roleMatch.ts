@@ -5,7 +5,7 @@ const FAMILIES: [string, RegExp][] = [
   ['limpieza', /housekeep|room attend|maid|cleaner|janitor|camarer|limpie|aseo|laundry|lavander/],
   ['cocina', /cook|chef|kitchen|cocin|dishwash|lavaplat|prep|baker|panader|food/],
   ['jardin', /landscap|ground|garden|jardin|lawn|paisaj|nursery|farm|agricult|vivero/],
-  ['construccion', /construct|laborer|carpent|mason|roof|concrete|drywall|paint|pintor|alba[nñ]il|obra|builder|rigger|electric|plumb|weld|maintenance|mantenim/],
+  ['construccion', /construct|construcc|laborer|carpent|carpint|mason|roof|concrete|drywall|paint|pintor|alba[nñ]il|obra|builder|rigger|electric|plumb|weld|maintenance|mantenim/],
   ['recepcion', /front desk|reception|recepci|concierge|bell|botones|hotel clerk/],
   ['servicio', /server|waiter|waitress|mesero|mesera|bartend|barman|host|busser/],
   ['conduccion', /driver|conduct|chofer|truck/],
@@ -17,6 +17,31 @@ const norm = (t: string) => t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCa
 export function familiesOf(text: string): Set<string> {
   const t = norm(text);
   return new Set(FAMILIES.filter(([, re]) => re.test(t)).map(([id]) => id));
+}
+
+// Lo que la persona dijo sobre sus rutas. La Ruta A es la de mayor experiencia (cuestionario del Mapa,
+// puesto del CV y la industria guardada); la Ruta B es la secundaria (opcional).
+export interface RouteProfile {
+  target_role?: string | null;
+  industry?: string | null;
+  experiencia_industria?: string | null;
+  experiencia_industria_b?: string | null;
+}
+
+const clean = (s: string | null | undefined) => {
+  const t = (s || '').trim();
+  return t === 'Sin Experiencia' ? '' : t;
+};
+
+// 'A' si la oferta es de su ruta principal, 'B' si es de la secundaria, null si no es de ninguna.
+// Con las dos, gana la A: sirve para ordenar primero lo que más le conviene.
+export function routeOfJob(jobTitle: string, p: RouteProfile | null | undefined): 'A' | 'B' | null {
+  if (!p) return null;
+  const a = [p.target_role, p.industry, p.experiencia_industria].map(clean).filter(Boolean);
+  if (a.some((w) => jobMatchesRole(jobTitle, w))) return 'A';
+  const b = clean(p.experiencia_industria_b);
+  if (b && jobMatchesRole(jobTitle, b)) return 'B';
+  return null;
 }
 
 // true si la oferta comparte familia con el puesto (o con la industria) de la persona, o comparten una palabra del título
