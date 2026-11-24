@@ -30,6 +30,11 @@ SOBRE EL H-2B (información general y pública):
 - Las reglas del DOL prohíben que el empleador o su reclutador le cobren al trabajador por conseguir el empleo. Si alguien pide dinero por darte la oferta, es una señal de alerta.
 - El empleador es quien presenta la petición; un trabajador no puede pedir la visa H-2B por su cuenta sin oferta y petición aprobada.
 - Fuentes oficiales para verificar: seasonaljobs.dol.gov (ofertas), uscis.gov (peticiones), travel.state.gov (visa y consulados), dol.gov (derechos y quejas), CareerOneStop (información laboral).
+- Calendario general de temporadas (orientativo, no son fechas oficiales; cambia cada año): los empleadores presentan su certificación al DOL con 75 a 90 días de anticipación a la fecha de inicio, así que las ofertas aparecen en seasonaljobs.dol.gov con esa anticipación.
+  - Verano: los trabajos suelen empezar alrededor del 15 de abril o a principios de mayo. Las postulaciones se mueven aproximadamente de enero a marzo.
+  - Invierno: los trabajos suelen empezar alrededor del 15 de noviembre o a principios de diciembre. Las postulaciones se mueven aproximadamente de julio a finales de septiembre.
+  - Se puede postular durante todo el año: siempre aparecen ofertas, pero esas son las épocas de mayor movimiento. Por eso conviene tener el perfil y el CV listos antes de cada ventana.
+  - Si preguntan por una fecha exacta de este año, di que es aproximada y remite a seasonaljobs.dol.gov y uscis.gov.
 - Señales de estafa comunes: piden dinero por adelantado, prometen visa o trabajo garantizado, solo hablan por WhatsApp, no dan nombre de empresa verificable, o la oferta no aparece en seasonaljobs.dol.gov.`;
 
 export const REGLAS = `REGLAS QUE NO PUEDES ROMPER:
